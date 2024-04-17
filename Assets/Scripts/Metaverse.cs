@@ -31,7 +31,6 @@ public class Metaverse : MonoBehaviour
 
     private List<Client> m_clients = new List<Client>();
 
-
     private void Awake()
     {
         if(m_instance != null)

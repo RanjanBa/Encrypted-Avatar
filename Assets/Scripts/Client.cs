@@ -4,6 +4,9 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
+using System.Threading;
+using System.IO;
+using UnityEditor.PackageManager;
 
 public class Client : MonoBehaviour
 {
@@ -19,6 +22,7 @@ public class Client : MonoBehaviour
     private string m_privateKey;
     private string m_publicKey;
     private EncryptedMessage m_encryptedMessage;
+    private Thread m_receiveMsgThread;
 
     private void Start()
     {
@@ -68,6 +72,12 @@ public class Client : MonoBehaviour
                     return;
                 }
                 ReceiveMsgDecoding(_byteLength);
+                m_receiveMsgThread = new Thread(new ThreadStart(ListenForReceiveMsg))
+                {
+                    IsBackground = true
+                };
+
+                m_receiveMsgThread.Start();
             }, null);
         }
         catch
@@ -78,27 +88,22 @@ public class Client : MonoBehaviour
 
     private void OnApplicationQuit()
     {
-        if(m_socket != null && m_socket.Connected) {
-            // Debug.Log("Application ending after " + Time.time + " seconds");
-            m_socket.Close();
-        }
+        m_socket?.Close();
+        m_receiveMsgThread?.Abort();
     }
 
-    [ContextMenu("Get Key")]
     public void GetKey()
     {
-        if (m_socket != null && m_socket.Connected)
+        if (m_socket == null || !m_socket.Connected)
         {
-            Debug.Log("Getting key...");
-            string msg = "get_key";
-            byte[] _data = Encoding.UTF8.GetBytes(msg);
-            m_stream.BeginWrite(_data, 0, _data.Length, null, null);
-            m_stream.BeginRead(m_receiveBuffer, 0, m_DATA_BUFFER_SIZE, KeyReceiveMsgCallback, null);
+            Debug.LogError("Client not connected to server.");
+            return;
         }
-        else
-        {
-            Debug.Log("Not connected to the server!");
-        }
+
+        Debug.Log("Getting key...");
+        string msg = "get_key";
+        byte[] data = Encoding.UTF8.GetBytes(msg);
+        m_stream.BeginWrite(data, 0, data.Length, null, null);
     }
 
     public void EncryptMsg(string _msg)
@@ -115,7 +120,6 @@ public class Client : MonoBehaviour
             Debug.Log(new_msg);
             byte[] _data = Encoding.UTF8.GetBytes(new_msg);
             m_stream.BeginWrite(_data, 0, _data.Length, null, null);
-            m_stream.BeginRead(m_receiveBuffer, 0, m_DATA_BUFFER_SIZE, EncryptedReceiveMsgCallback, null);
         }
     }
 
@@ -135,125 +139,55 @@ public class Client : MonoBehaviour
             Debug.Log(new_msg);
             byte[] _data = Encoding.UTF8.GetBytes(new_msg);
             m_stream.BeginWrite(_data, 0, _data.Length, null, null);
-            m_stream.BeginRead(m_receiveBuffer, 0, m_DATA_BUFFER_SIZE, DecryptedReceiveMsgCallback, null);
         }
     }
 
-    private void KeyReceiveMsgCallback(IAsyncResult _result)
+    private void ListenForReceiveMsg()
     {
         try
         {
-            int _byteLength = m_stream.EndRead(_result);
-            if (_byteLength <= 0)
+            while (true)
             {
-                Debug.Log("No message send ...");
-                return;
-            }
-
-            string msg = ReceiveMsgDecoding(_byteLength);
-            if (msg == "") return;
-
-            Debug.Log("Parsing Public & Private Key...");
-
-            List<string> sentences = ParseMessage(msg);
-
-            for (int i = 0; i < sentences.Count; i++)
-            {
-                List<string> words = ParseSentence(sentences[i]);
-
-                if (words[0].Equals("public_key"))
+                // Check if there's any data available on the network stream
+                if (m_stream.DataAvailable)
                 {
-                    m_publicKey = words[1];
-                }
-                else if (words[0].Equals("private_key"))
-                {
-                    m_privateKey = words[1];
-                }
-            }
+                    int length;
+                    // Read incoming stream into byte array.
+                    while ((length = m_stream.Read(m_receiveBuffer, 0, m_receiveBuffer.Length)) != 0)
+                    {
+                        var incomingData = new byte[length];
+                        Array.Copy(m_receiveBuffer, 0, incomingData, 0, length);
+                        // Convert byte array to string message.
+                        string msg = Encoding.UTF8.GetString(incomingData);
+                        Debug.Log("Server message received: " + msg);
 
-            Debug.Log("Parsing Public & Private Key Completed...");
-        }
-        catch
-        {
-            Debug.Log("Error in Receiving Msg!");
-        }
-    }
+                        Debug.Log("Parsing Public & Private Key...");
 
-    private void EncryptedReceiveMsgCallback(IAsyncResult _result)
-    {
-        try
-        {
-            int _byteLength = m_stream.EndRead(_result);
-            if (_byteLength <= 0)
-            {
-                Debug.Log("No message send ...");
-                return;
-            }
+                        List<string> sentences = ParseMessage(msg);
 
-            string msg = ReceiveMsgDecoding(_byteLength);
-            if (msg == "") return;
-            Debug.Log("Parsing Encrypted Msg...");
+                        for (int i = 0; i < sentences.Count; i++)
+                        {
+                            List<string> words = ParseSentence(sentences[i]);
 
-            List<string> sentences = ParseMessage(msg);
-            string enc_session_key = "";
-            string tag = "";
-            string ciphertext = "";
-            string nonce = "";
-            for (int i = 0; i < sentences.Count; i++)
-            {
-                List<string> words = ParseSentence(sentences[i]);
+                            if (words[0].Equals("public_key"))
+                            {
+                                m_publicKey = words[1];
+                            }
+                            else if (words[0].Equals("private_key"))
+                            {
+                                m_privateKey = words[1];
+                            }
 
-                if (words[0].Equals("enc_session_key"))
-                {
-                    enc_session_key = words[1];
-                }
-                else if (words[0].Equals("tag"))
-                {
-                    tag = words[1];
-                }
-                else if (words[0].Equals("ciphertext"))
-                {
-                    ciphertext = words[1];
-                }
-                else if (words[0].Equals("nonce"))
-                {
-                    nonce = words[1];
+                        }
+
+                        Debug.Log("Parsing Public & Private Key Completed...");
+                    }
                 }
             }
-
-            m_encryptedMessage = new EncryptedMessage()
-            {
-                encSessionKey = enc_session_key,
-                tag = tag,
-                ciphertext = ciphertext,
-                nonce = nonce,
-            };
-
-            Debug.Log(m_encryptedMessage);
-            Debug.Log("Parsing Encrypted Msg Completed...");
         }
-        catch
+        catch (SocketException socketException)
         {
-            Debug.Log("Error in Receiving Msg!");
-        }
-    }
-
-    private void DecryptedReceiveMsgCallback(IAsyncResult _result)
-    {
-        try
-        {
-            int _byteLength = m_stream.EndRead(_result);
-            if (_byteLength <= 0)
-            {
-                Debug.Log("No message send ...");
-                return;
-            }
-
-            string msg = ReceiveMsgDecoding(_byteLength);
-        }
-        catch
-        {
-            Debug.Log("Error in Receiving Msg!");
+            Debug.Log("Socket exception: " + socketException);
         }
     }
 
