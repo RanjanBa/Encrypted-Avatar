@@ -54,7 +54,7 @@ class Client:
             print("Error in socket closing!")
             raise Exception()
 
-clients : list[Client] = []
+clients = [] #: list[Client] = []
 
 
 def broadcast(msg : str):

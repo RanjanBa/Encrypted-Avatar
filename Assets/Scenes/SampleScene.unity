@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 2138677392}
-  m_IndirectSpecularColor: {r: 0.28502658, g: 0.37139305, b: 0.49600944, a: 1}
+  m_IndirectSpecularColor: {r: 0.28502658, g: 0.37139314, b: 0.49600947, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -1720,7 +1720,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Enter text...
+  m_text: Player Name...
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -1797,6 +1797,52 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1744608384}
   m_CullTransparentMesh: 1
+--- !u!1 &1745094993
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1745094995}
+  - component: {fileID: 1745094994}
+  m_Layer: 0
+  m_Name: GameManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1745094994
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1745094993}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d271b55ff5d8dea19cce914291deb25, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_connectPanel: {fileID: 669510925}
+  m_playerNameInputField: {fileID: 423724598}
+  m_connectBtn: {fileID: 2145149004}
+--- !u!4 &1745094995
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1745094993}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 7
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1829322739
 GameObject:
   m_ObjectHideFlags: 0
@@ -1974,14 +2020,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 579dc79ebcdfa1949827720c01c93923, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_createAvatarBtn: {fileID: 0}
-  m_avatarNameField: {fileID: 0}
-  m_dropdown: {fileID: 0}
-  m_getKeyBtn: {fileID: 0}
-  m_msgInputField: {fileID: 0}
-  m_sendBtn: {fileID: 0}
-  m_decryptBtn: {fileID: 0}
-  m_avatarPrefabs: {fileID: 963116201883834450, guid: 58786a32db70507428b4932e2ca0fef7, type: 3}
+  m_avatarPrefabs: {fileID: 963116201883834450, guid: fabf9c8c50667a0029a49f07e0d4b3ae, type: 3}
 --- !u!1 &1904166338
 GameObject:
   m_ObjectHideFlags: 0
