@@ -23,7 +23,6 @@ public class Client : MonoBehaviour
     private NetworkStream m_stream;
     private Thread m_listeningDataThread;
 
-    private byte[] m_receiveBuffer;
     private string m_privateKey;
     private string m_publicKey;
     private EncryptedMessage m_encryptedMessage;
