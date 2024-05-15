@@ -12,140 +12,67 @@ public class Client : MonoBehaviour
 {
     private const int m_DATA_BUFFER_SIZE = 10240;
 
-    public string ip = "127.0.0.1";
-    public int port = 9000;
     public string alias = "Ranjan";
 
-    private TcpClient m_socket;
+    [SerializeField]
+    private string ipAddress = "127.0.0.1";
+    [SerializeField]
+    private int port = 9000;
+
+    private TcpClient m_client;
     private NetworkStream m_stream;
+    private Thread m_listeningDataThread;
+
     private byte[] m_receiveBuffer;
     private string m_privateKey;
     private string m_publicKey;
     private EncryptedMessage m_encryptedMessage;
-    private Thread m_receiveMsgThread;
 
     private void Start()
     {
-        m_socket = new TcpClient()
-        {
-            ReceiveBufferSize = m_DATA_BUFFER_SIZE,
-            SendBufferSize = m_DATA_BUFFER_SIZE
-        };
-
-        m_receiveBuffer = new byte[m_DATA_BUFFER_SIZE];
-        IAsyncResult _result = m_socket.BeginConnect(ip, port, ConnectCallback, m_socket);
+        ConnectToServer();
     }
 
-    private void ConnectCallback(IAsyncResult _result)
+    private void ConnectToServer()
     {
-        m_socket.EndConnect(_result);
-
-        if (!m_socket.Connected)
-        {
-            Debug.Log("Can't connect to the server!");
-            return;
-        }
-
-        m_stream = m_socket.GetStream();
-        m_stream.BeginRead(m_receiveBuffer, 0, m_DATA_BUFFER_SIZE, InitializeReceiveCallback, null);
-    }
-
-    private void InitializeReceiveCallback(IAsyncResult _result)
-    {
-        int _byteLength = m_stream.EndRead(_result);
-        if (_byteLength <= 0)
-        {
-            Debug.Log("No message send ...");
-            return;
-        }
-
-        string msg = ReceiveMsgDecoding(_byteLength);
         try
         {
-            byte[] _data = Encoding.UTF8.GetBytes(alias);
-            m_stream.BeginWrite(_data, 0, _data.Length, null, null);
-            m_stream.BeginRead(m_receiveBuffer, 0, m_DATA_BUFFER_SIZE, (_result) => {
-                int _byteLength = m_stream.EndRead(_result);
-                if (_byteLength <= 0)
-                {
-                    Debug.Log("No message send ...");
-                    return;
-                }
-                ReceiveMsgDecoding(_byteLength);
-                m_receiveMsgThread = new Thread(new ThreadStart(ListenForReceiveMsg))
-                {
-                    IsBackground = true
-                };
+            m_client = new TcpClient(ipAddress, port);
+            m_stream = m_client.GetStream();
+            Debug.Log("Connected to server.");
 
-                m_receiveMsgThread.Start();
-            }, null);
+            m_listeningDataThread = new Thread(new ThreadStart(ListeningForMsgFromServer))
+            {
+                IsBackground = true
+            };
+            m_listeningDataThread.Start();
+
+            SendMessageToServer(alias + "\n");
         }
-        catch
+        catch (SocketException e)
         {
-            Debug.Log("Error!");
+            Debug.LogError("SocketException: " + e.ToString());
         }
     }
 
-    private void OnApplicationQuit()
+    public void SendMessageToServer(string _message)
     {
-        m_socket?.Close();
-        m_receiveMsgThread?.Abort();
-    }
-
-    public void GetKey()
-    {
-        if (m_socket == null || !m_socket.Connected)
+        if (m_client == null || !m_client.Connected)
         {
             Debug.LogError("Client not connected to server.");
             return;
         }
 
-        Debug.Log("Getting key...");
-        string msg = "get_key";
-        byte[] data = Encoding.UTF8.GetBytes(msg);
-        m_stream.BeginWrite(data, 0, data.Length, null, null);
+        byte[] data = Encoding.UTF8.GetBytes(_message);
+        m_stream.Write(data, 0, data.Length);
+        Debug.Log(alias + " sent message to server : " + _message);
     }
 
-    public void EncryptMsg(string _msg)
-    {
-        if(m_publicKey == null || m_publicKey.Length == 0)
-        {
-            Debug.Log("Valid public key is not present.");
-            return;
-        }
-        if(m_socket != null && m_socket.Connected)
-        {
-            Debug.Log("Getting Encrypted Msg...");
-            string new_msg = string.Format("encrypt_msg\nmsg:{0}\npublic_key:{1}", _msg, m_publicKey);
-            Debug.Log(new_msg);
-            byte[] _data = Encoding.UTF8.GetBytes(new_msg);
-            m_stream.BeginWrite(_data, 0, _data.Length, null, null);
-        }
-    }
-
-    public void DecryptMsg()
-    {
-        if(m_encryptedMessage == null)
-        {
-            Debug.Log("No Encrypted Msg To Decrypt...");
-            return;
-        }
-
-        if (m_socket != null && m_socket.Connected)
-        {
-            Debug.Log("Getting Decrypted Msg...");
-
-            string new_msg = string.Format("decrypt_msg\nprivate_key:{0}\nenc_session_key:{1}\ntag:{2}\nciphertext:{3}\nnonce:{4}", m_privateKey, m_encryptedMessage.encSessionKey, m_encryptedMessage.tag, m_encryptedMessage.ciphertext, m_encryptedMessage.nonce);
-            Debug.Log(new_msg);
-            byte[] _data = Encoding.UTF8.GetBytes(new_msg);
-            m_stream.BeginWrite(_data, 0, _data.Length, null, null);
-        }
-    }
-
-    private void ListenForReceiveMsg()
+    private void ListeningForMsgFromServer()
     {
         try
         {
+            byte[] bytes = new byte[m_DATA_BUFFER_SIZE];
             while (true)
             {
                 // Check if there's any data available on the network stream
@@ -153,34 +80,32 @@ public class Client : MonoBehaviour
                 {
                     int length;
                     // Read incoming stream into byte array.
-                    while ((length = m_stream.Read(m_receiveBuffer, 0, m_receiveBuffer.Length)) != 0)
+                    while ((length = m_stream.Read(bytes, 0, bytes.Length)) != 0)
                     {
                         var incomingData = new byte[length];
-                        Array.Copy(m_receiveBuffer, 0, incomingData, 0, length);
+                        Array.Copy(bytes, 0, incomingData, 0, length);
                         // Convert byte array to string message.
-                        string msg = Encoding.UTF8.GetString(incomingData);
-                        Debug.Log("Server message received: " + msg);
+                        string serverMessage = Encoding.UTF8.GetString(incomingData);
+                        Debug.Log(alias + " received msg from server : " + serverMessage);
+                        List<string> sentences = ParseMessage(serverMessage);
 
-                        Debug.Log("Parsing Public & Private Key...");
-
-                        List<string> sentences = ParseMessage(msg);
-
-                        for (int i = 0; i < sentences.Count; i++)
+                        if (sentences.Count == 0)
                         {
-                            List<string> words = ParseSentence(sentences[i]);
-
-                            if (words[0].Equals("public_key"))
-                            {
-                                m_publicKey = words[1];
-                            }
-                            else if (words[0].Equals("private_key"))
-                            {
-                                m_privateKey = words[1];
-                            }
-
+                            return;
                         }
 
-                        Debug.Log("Parsing Public & Private Key Completed...");
+                        if (sentences[0] == "generate_key")
+                        {
+                            ParseKeys(sentences);
+                        }
+                        else if (sentences[0] == "encrypt_msg")
+                        {
+                            ParseEncryptedMessage(sentences);
+                        }
+                        else if (sentences[0] == "decrypt_msg")
+                        {
+                            Debug.Log("Decrypted Msg : " + sentences[1]);
+                        }
                     }
                 }
             }
@@ -191,15 +116,108 @@ public class Client : MonoBehaviour
         }
     }
 
-    private string ReceiveMsgDecoding(int _byteLength)
+    private void OnApplicationQuit()
     {
-        byte[] _data = new byte[_byteLength];
-        Array.Copy(m_receiveBuffer, _data, _byteLength);
+        m_client?.Close();
+        m_listeningDataThread?.Abort();
+    }
 
-        string msg = Encoding.UTF8.GetString(_data);
-        Debug.Log("byte length : " + _byteLength);
-        Debug.Log(msg);
-        return msg;
+    public void EncryptMsg(string _msg)
+    {
+        if (m_publicKey == null || m_publicKey.Length == 0)
+        {
+            Debug.Log("Valid public key is not present.");
+            return;
+        }
+        if (m_client != null && m_client.Connected)
+        {
+            Debug.Log("Getting Encrypted Msg...");
+            string new_msg = string.Format("encrypt_msg\nmsg:{0}\npublic_key:{1}", _msg, m_publicKey);
+            Debug.Log(new_msg);
+            SendMessageToServer(new_msg);
+        }
+    }
+
+    public void DecryptMsg()
+    {
+        if (m_encryptedMessage == null)
+        {
+            Debug.Log("No Encrypted Msg To Decrypt...");
+            return;
+        }
+
+        if (m_client != null && m_client.Connected)
+        {
+            Debug.Log("Getting Decrypted Msg...");
+
+            string new_msg = string.Format("decrypt_msg\nprivate_key:{0}\nenc_session_key:{1}\ntag:{2}\nciphertext:{3}\nnonce:{4}", m_privateKey, m_encryptedMessage.encSessionKey, m_encryptedMessage.tag, m_encryptedMessage.ciphertext, m_encryptedMessage.nonce);
+            Debug.Log(new_msg);
+            SendMessageToServer(new_msg);
+        }
+    }
+
+    private void ParseKeys(List<string> _sentences)
+    {
+        Debug.Log("Parsing Public & Private Key...");
+
+        for (int i = 0; i < _sentences.Count; i++)
+        {
+            List<string> words = ParseSentence(_sentences[i]);
+
+            if (words[0].Equals("public_key"))
+            {
+                m_publicKey = words[1];
+            }
+            else if (words[0].Equals("private_key"))
+            {
+                m_privateKey = words[1];
+            }
+
+        }
+
+        Debug.Log("Parsing Public & Private Key Completed...");
+    }
+
+    private void ParseEncryptedMessage(List<string> _sentences)
+    {
+        Debug.Log("Parsing Encrypted Msg...");
+        string encSessionKey = "";
+        string tag = "";
+        string ciphertext = "";
+        string nonce = "";
+
+        for (int i = 0; i < _sentences.Count; i++)
+        {
+            List<string> words = ParseSentence(_sentences[i]);
+
+
+            if (words[0].Equals("enc_session_key"))
+            {
+                encSessionKey = words[1];
+            }
+            else if (words[0].Equals("tag"))
+            {
+                tag = words[1];
+            }
+            else if (words[0].Equals("ciphertext"))
+            {
+                ciphertext = words[1];
+            }
+            else if (words[0].Equals("nonce"))
+            {
+                nonce = words[1];
+            }
+        }
+
+        m_encryptedMessage = new EncryptedMessage
+        {
+            encSessionKey = encSessionKey,
+            tag = tag,
+            ciphertext = ciphertext,
+            nonce = nonce,
+        };
+
+        Debug.Log("Parsing Encrypted Msg Completed...");
     }
 
     private List<string> ParseMessage(string _msg)
@@ -237,17 +255,18 @@ public class Client : MonoBehaviour
         Debug.Log(_text);
         List<string> words = new List<string>();
         string word = "";
-        for(int i = 0; i < _text.Length; i++)
+        for (int i = 0; i < _text.Length; i++)
         {
             if (_text[i] == ':')
             {
                 word = RemoveLeadingTrailing(word);
-                if(word != "")
+                if (word != "")
                 {
                     words.Add(word);
                 }
                 word = "";
-            } else
+            }
+            else
             {
                 word += _text[i];
             }
@@ -271,7 +290,7 @@ public class Client : MonoBehaviour
         }
 
         int end_idx = _text.Length - 1;
-        while(end_idx >= 0 && _text[end_idx] == _ch)
+        while (end_idx >= 0 && _text[end_idx] == _ch)
         {
             end_idx--;
         }

@@ -1,6 +1,7 @@
 import socket
 import threading
 from hashlib import sha3_224
+from typing import List
 
 import rsa_encrypt_decrypt
 
@@ -12,10 +13,12 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((host, port))
 server.listen(5)
 
+
 class Client:
     def __init__(self, socket : socket.socket) -> None:
         self.__socket = socket
         self.__alias = None
+        self.__public_key = None
     
     @property
     def socket(self):
@@ -25,10 +28,18 @@ class Client:
     def alias(self):
         return self.__alias
     
+    @property
+    def public_key(self):
+        return self.__public_key
+    
     @alias.setter
     def alias(self, name):
         self.__alias = name
     
+    @public_key.setter
+    def public_key(self, key):
+        self.__public_key = key
+
     def sendMessage(self, msg : str) -> None:
         self.__socket.send(msg.encode("utf-8"))
         # try:
@@ -54,7 +65,8 @@ class Client:
             print("Error in socket closing!")
             raise Exception()
 
-clients = [] #: list[Client] = []
+
+clients : List[Client] = []
 
 
 def broadcast(msg : str):
@@ -65,11 +77,24 @@ def broadcast(msg : str):
 def handleClients(client : Client):
     client.sendMessage(f"You are connected to the server {server.getsockname()} successfully")
     alias = client.recvMessage()
+    alias = alias.strip('\n')
     client.alias = alias
+    
     print(f"The alias of the new client {client.socket.getpeername()} is {alias}")
-    broadcast(f"{alias} is connected to the server!")
+    broadcast(f"{alias} is connected to the server!\n")
     clients.append(client)
     print(f"Number of clients {len(clients)}")
+    
+    print("Sending...")
+    pk, sk = rsa_encrypt_decrypt.getKey()
+    
+    public_key = bytes.hex(pk)
+    secret_key = bytes.hex(sk)
+
+    client.sendMessage(f"generate_key\npublic_key : {public_key}\nprivate_key : {secret_key}")
+    print("Sending key Completed...")
+    client.public_key = public_key
+
     while True:
         try:
             msg = client.recvMessage()
@@ -77,8 +102,12 @@ def handleClients(client : Client):
                 print(msg)
             else:
                 continue
-
+            
+            print(f"Msg received from {client.alias} : {msg}")
             parseMessage(client, msg)
+        except KeyboardInterrupt:
+            print("Keyboard Interruption...")
+            client.close()
         except:
             if(client in clients):
                 clients.remove(client)
@@ -92,15 +121,31 @@ def parseMessage(client : Client, msg : str):
     sentences = msg.split('\n')
     
     msg_code = sentences[0].strip()
-    if msg_code == "get_key":
-        print("Sending...")
-        pk, sk = rsa_encrypt_decrypt.getKey()
-        
-        public_key = bytes.hex(pk)
-        secret_key = bytes.hex(sk)
 
-        client.sendMessage(f"public_key : {public_key}\nprivate_key : {secret_key}")
-        print("Sending key Completed...")
+    if msg_code == "send_msg":
+        receiver_name = sentences[1].strip()
+        new_msg = ""
+        for i in range(2, len(sentences)):
+            new_msg += sentences[i]
+            new_msg += '\n'
+        
+        receiver_client = None
+
+        for client in clients:
+            if client.alias == receiver_name:
+                receiver_client = client
+                break
+        
+        if receiver_client == None:
+            print(f"No client is found with name {receiver_name}")
+            return
+        
+        public_key = bytes.fromhex(receiver_client.public_key)
+        enc_session_key, tag, ciphertext, nonce = rsa_encrypt_decrypt.encrypt(new_msg, public_key)
+        
+        response = f"encrypt_msg\nenc_session_key:{bytes.hex(enc_session_key)}\n tag:{bytes.hex(tag)}\n ciphertext:{bytes.hex(ciphertext)}\n nonce:{bytes.hex(nonce)}"
+        receiver_client.sendMessage(response)
+        print(f"Msg Sent to Receiver {receiver_client.alias}...")
     elif msg_code == "encrypt_msg":
         print("Encrypting Msg...")
         msg = ""
@@ -128,7 +173,7 @@ def parseMessage(client : Client, msg : str):
         public_key = bytes.fromhex(public_key)
         enc_session_key, tag, ciphertext, nonce = rsa_encrypt_decrypt.encrypt(msg, public_key)
         
-        response = f"enc_session_key:{bytes.hex(enc_session_key)}\n tag:{bytes.hex(tag)}\n ciphertext:{bytes.hex(ciphertext)}\n nonce:{bytes.hex(nonce)}"
+        response = f"encrypt_msg\nenc_session_key:{bytes.hex(enc_session_key)}\ntag:{bytes.hex(tag)}\nciphertext:{bytes.hex(ciphertext)}\nnonce:{bytes.hex(nonce)}"
         client.sendMessage(response)
         print("Encrypted Msg Sent...")
     elif msg_code == "decrypt_msg":
@@ -173,27 +218,39 @@ def parseMessage(client : Client, msg : str):
         nonce = bytes.fromhex(nonce)
 
         decrypt_msg = rsa_encrypt_decrypt.decrypt(private_key, enc_session_key, tag, ciphertext, nonce)
-        client.sendMessage(decrypt_msg)
-        print("Decrypting Msg Sent...")
+        client.sendMessage(f"decrypt_msg\n{decrypt_msg}")
+        print("Decrypted Msg Sent...")
     else:
         # client.sendMessage(f"Error in the request!")
         print("Error in the request!")
 
 
 def startServer():
-    while True:
-        try:
-            print(f"Number of clients : {len(clients)}")
-            print("Server is running and waiting for connection ...")
-            clientsocket, address = server.accept()
-            print(f"New Client establishes connection with {address}")
-            
-            client = Client(clientsocket)
-            
-            thread = threading.Thread(target=handleClients, args=(client,))
-            thread.start()
-        except:
-            print("Error start server!")
+    try:
+        while True:
+            try:
+                print(f"Number of clients : {len(clients)}")
+                print("Server is running and waiting for connection ...")
+                clientsocket, address = server.accept()
+                print(f"New Client establishes connection with {address}")
+                
+                client = Client(clientsocket)
+                
+                thread = threading.Thread(target=handleClients, args=(client,))
+                thread.start()
+            except:
+                print("Error start server!")
+                s = input("Enter 'Yes' for continuation... : ")
+
+                if s.lower() == 'yes':
+                    continue
+                else:
+                    server.close()
+                    break
+    except KeyboardInterrupt:
+        print("Keyboard Interruption...")
+    finally:
+        server.close()
 
 
 if __name__ == "__main__":

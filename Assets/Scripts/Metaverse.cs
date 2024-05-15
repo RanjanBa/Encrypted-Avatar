@@ -10,18 +10,17 @@ public class Metaverse : MonoBehaviour
     [SerializeField]
     private GameObject m_avatarPrefabs;
 
-    private Client m_selectedClient;
-
     private List<Client> m_clients = new List<Client>();
 
     private void Awake()
     {
-        if(m_instance != null)
+        if (m_instance != null)
         {
-            if(m_instance.gameObject == gameObject)
+            if (m_instance.gameObject == gameObject)
             {
                 Destroy(this);
-            } else
+            }
+            else
             {
                 Destroy(gameObject);
             }
@@ -30,23 +29,32 @@ public class Metaverse : MonoBehaviour
         m_instance = this;
     }
 
-    public void CreateAvatar(string alias_name)
+    public void CreateAvatar(string _aliasName)
     {
-        if(m_clients.Find((c) => c.alias == alias_name) != null)
+        if (m_clients.Find((c) => c.alias == _aliasName) != null)
         {
             Debug.Log("Client Already present with same name");
             return;
         }
 
         GameObject gm = Instantiate(m_avatarPrefabs, transform);
-        gm.name = alias_name;
+        gm.name = _aliasName;
         Client client = gm.GetComponent<Client>();
-        client.alias = alias_name;
+        client.alias = _aliasName;
 
-        if(client != null)
+        if (client != null)
         {
+            if (GameManager.Instance.LeftAvatarView.Avatar == null)
+            {
+                GameManager.Instance.LeftAvatarView.Avatar = client;
+            }
+            else if (GameManager.Instance.RightAvatarView.Avatar == null)
+            {
+                GameManager.Instance.RightAvatarView.Avatar = client;
+            }
             m_clients.Add(client);
-        } else
+        }
+        else
         {
             Destroy(gm);
         }
