@@ -21,7 +21,11 @@ public class AvatarUIView : MonoBehaviour
     public Client Avatar
     {
         get { return m_avatar; }
-        set { m_avatar = value; UpdateAvatarView(m_avatar); }
+        set { 
+            m_avatar = value;
+            UpdateAvatarView(m_avatar);
+            m_avatar.onDecryptedMsgReceived += UpdateTextView;
+        }
     }
 
     public Button SendMsgBtn
@@ -37,5 +41,10 @@ public class AvatarUIView : MonoBehaviour
     private void UpdateAvatarView(Client _avatar)
     {
         m_avatarNameText.text = _avatar.alias;
+    }
+
+    private void UpdateTextView(string _msg)
+    {
+        m_messageText.text = _msg;
     }
 }

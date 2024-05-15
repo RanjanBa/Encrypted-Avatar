@@ -1,12 +1,12 @@
 using System;
+using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
 using System.Threading;
-using System.IO;
-using UnityEditor.PackageManager;
+using UnityEngine.Events;
 
 public class Client : MonoBehaviour
 {
@@ -28,9 +28,24 @@ public class Client : MonoBehaviour
     private string m_publicKey;
     private EncryptedMessage m_encryptedMessage;
 
+    private bool m_isDecryptedMsgReceived;
+    private string m_decryptedMsg;
+
+    public UnityAction<string> onDecryptedMsgReceived;
+
     private void Start()
     {
         ConnectToServer();
+    }
+
+    private void Update()
+    {
+        if(m_isDecryptedMsgReceived)
+        {
+            onDecryptedMsgReceived(m_decryptedMsg);
+            m_isDecryptedMsgReceived = false;
+            m_decryptedMsg = "";
+        }
     }
 
     private void ConnectToServer()
@@ -104,7 +119,7 @@ public class Client : MonoBehaviour
                         }
                         else if (sentences[0] == "decrypt_msg")
                         {
-                            Debug.Log("Decrypted Msg : " + sentences[1]);
+                            ParseDecryptedMessage(sentences);
                         }
                     }
                 }
@@ -217,6 +232,20 @@ public class Client : MonoBehaviour
             nonce = nonce,
         };
 
+        Debug.Log("Parsing Encrypted Msg Completed...");
+        DecryptMsg();
+    }
+
+    private void ParseDecryptedMessage(List<string> _sentences)
+    {
+        Debug.Log("Parsing Decrypted Msg...");
+        string msg = "";
+        for(int i = 1; i < _sentences.Count; i++) {
+            msg += _sentences[i];
+            msg += "\n";
+        }
+        m_decryptedMsg = msg;
+        m_isDecryptedMsgReceived = true;
         Debug.Log("Parsing Encrypted Msg Completed...");
     }
 

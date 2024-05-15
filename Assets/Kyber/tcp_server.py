@@ -130,14 +130,19 @@ def parseMessage(client : Client, msg : str):
             new_msg += '\n'
         
         receiver_client = None
-
+        names = []
         for client in clients:
+            names.append(client.alias)
+        print("Clients' names are : ", end = "")
+        print(names)
+        for client in clients:
+            
             if client.alias == receiver_name:
                 receiver_client = client
                 break
         
         if receiver_client == None:
-            print(f"No client is found with name {receiver_name}")
+            print(f"No client is found with name '{receiver_name}'")
             return
         
         public_key = bytes.fromhex(receiver_client.public_key)
@@ -217,8 +222,8 @@ def parseMessage(client : Client, msg : str):
         ciphertext = bytes.fromhex(ciphertext)
         nonce = bytes.fromhex(nonce)
 
-        decrypt_msg = rsa_encrypt_decrypt.decrypt(private_key, enc_session_key, tag, ciphertext, nonce)
-        client.sendMessage(f"decrypt_msg\n{decrypt_msg}")
+        decrypted_msg = rsa_encrypt_decrypt.decrypt(private_key, enc_session_key, tag, ciphertext, nonce)
+        client.sendMessage(f"decrypt_msg\n{decrypted_msg}")
         print("Decrypted Msg Sent...")
     else:
         # client.sendMessage(f"Error in the request!")
