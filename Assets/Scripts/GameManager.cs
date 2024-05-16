@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -21,16 +19,6 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     private AvatarUIView m_rightAvatarView;
 
-    public AvatarUIView LeftAvatarView
-    {
-        get { return m_leftAvatarView; }
-    }
-
-    public AvatarUIView RightAvatarView
-    {
-        get { return m_rightAvatarView; }
-    }
-
     private void Awake()
     {
         if (m_instance != null)
@@ -50,6 +38,10 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
+        m_connectPanel.SetActive(true);
+        m_leftAvatarView.gameObject.SetActive(false);
+        m_rightAvatarView.gameObject.SetActive(false);
+
         m_connectBtn.onClick.AddListener(() =>
         {
             if (m_playerNameInputField == null || m_playerNameInputField.text == "") return;
@@ -65,7 +57,7 @@ public class GameManager : MonoBehaviour
                 return;
             }
 
-            string msg = "send_msg\n" + GameManager.Instance.RightAvatarView.Avatar.alias + "\n" + m_leftAvatarView.MessageInputField.text;
+            string msg = "send_msg\n" + m_rightAvatarView.Avatar.alias + "\n" + m_leftAvatarView.MessageInputField.text;
             m_leftAvatarView.Avatar.SendMessageToServer(msg);
         });
 
@@ -77,16 +69,27 @@ public class GameManager : MonoBehaviour
                 return;
             }
 
-            string msg = "send_msg\n" + GameManager.Instance.LeftAvatarView.Avatar.alias + "\n" + m_rightAvatarView.MessageInputField.text;
+            string msg = "send_msg\n" + m_leftAvatarView.Avatar.alias + "\n" + m_rightAvatarView.MessageInputField.text;
             m_rightAvatarView.Avatar.SendMessageToServer(msg);
         });
+
+        m_leftAvatarView.gameObject.SetActive(false);
+        m_rightAvatarView.gameObject.SetActive(false);
     }
 
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.Tab))
+    public void SetClient(Client _client) {
+        if (m_leftAvatarView.Avatar == null)
         {
-            m_connectPanel.SetActive(!m_connectPanel.activeSelf);
+            m_leftAvatarView.Avatar = _client;
+            m_leftAvatarView.gameObject.SetActive(true);
+        }
+        else if (m_rightAvatarView.Avatar == null)
+        {
+            _client.transform.position = new Vector3(5, 0, 0);
+            m_rightAvatarView.Avatar = _client;
+            m_connectPanel.SetActive(false);
+            
+            m_rightAvatarView.gameObject.SetActive(true);
         }
     }
 }

@@ -44,14 +44,7 @@ public class Metaverse : MonoBehaviour
 
         if (client != null)
         {
-            if (GameManager.Instance.LeftAvatarView.Avatar == null)
-            {
-                GameManager.Instance.LeftAvatarView.Avatar = client;
-            }
-            else if (GameManager.Instance.RightAvatarView.Avatar == null)
-            {
-                GameManager.Instance.RightAvatarView.Avatar = client;
-            }
+            GameManager.Instance.SetClient(client);
             m_clients.Add(client);
         }
         else

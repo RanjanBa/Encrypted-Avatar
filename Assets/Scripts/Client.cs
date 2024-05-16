@@ -1,6 +1,4 @@
 using System;
-using System.IO;
-using System.Collections;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
@@ -26,11 +24,16 @@ public class Client : MonoBehaviour
     private string m_privateKey;
     private string m_publicKey;
     private EncryptedMessage m_encryptedMessage;
-
     private bool m_isDecryptedMsgReceived;
     private string m_decryptedMsg;
+    private Animator m_animator;
 
     public UnityAction<string> onDecryptedMsgReceived;
+
+    private void Awake()
+    {
+        m_animator = GetComponent<Animator>();
+    }
 
     private void Start()
     {
@@ -45,6 +48,8 @@ public class Client : MonoBehaviour
             m_isDecryptedMsgReceived = false;
             m_decryptedMsg = "";
         }
+
+        m_animator.SetInteger("anim_id", UnityEngine.Random.Range(1, 5));
     }
 
     private void ConnectToServer()
