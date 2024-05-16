@@ -47,6 +47,7 @@ public class GameManager : MonoBehaviour
             if (m_playerNameInputField == null || m_playerNameInputField.text == "") return;
 
             Metaverse.Instance.CreateAvatar(m_playerNameInputField.text);
+            m_playerNameInputField.text = "";
         });
 
         m_leftAvatarView.SendMsgBtn.onClick.AddListener(() =>

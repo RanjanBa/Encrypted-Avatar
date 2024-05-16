@@ -17,3 +17,11 @@ d = Kyber512.dec(c, sk, 120)
 
 print(public_key)
 print(secret_key)
+
+import rsa_encrypt_decrypt
+
+enc_session_key, tag, ciphertext, nonce = rsa_encrypt_decrypt.encrypt("Hello kyber", pk)
+
+msg = rsa_encrypt_decrypt.decrypt(sk, enc_session_key, tag, ciphertext, nonce)
+
+print(msg)
