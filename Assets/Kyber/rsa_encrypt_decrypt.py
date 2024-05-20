@@ -42,7 +42,6 @@ def main():
     
     enc_session_key, tag, ciphertext, nonce =  encrypt("Hello world. This is Cryptography test.", pb_key)
     decrypt(pvt_key, enc_session_key, tag, ciphertext, nonce)
-    decrypt(pvt_key, enc_session_key, tag, ciphertext, nonce)
 
 if __name__ == "__main__":
     main()
