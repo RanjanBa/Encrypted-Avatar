@@ -12,7 +12,6 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((host, port))
 server.listen(5)
 
-
 class Client:
     def __init__(self, socket : socket.socket) -> None:
         self.__socket = socket
@@ -235,10 +234,10 @@ def startServer():
             try:
                 print(f"Number of clients : {len(clients)}")
                 print("Server is running and waiting for connection ...")
-                clientsocket, address = server.accept()
+                client_socket, address = server.accept()
                 print(f"New Client establishes connection with {address}")
                 
-                client = Client(clientsocket)
+                client = Client(client_socket)
                 
                 thread = threading.Thread(target=handleClients, args=(client,))
                 thread.start()

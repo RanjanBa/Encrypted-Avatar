@@ -9,14 +9,29 @@ server = socket(AF_INET, SOCK_STREAM)
 server.bind((host, port))
 server.listen(5)
 
+clients : dict = {}
+
 def handleClient(client_socket : socket):
+    client_socket.send("Hello Client!".encode())
     print(client_socket)
 
-    client_socket.send("Hello from server!".encode())
+    msg = client_socket.recv(1024)
+    print(msg.decode())
+    h, p = client_socket.getpeername()
+    clients[(h, p)] = client_socket
+
     while True:
         try:
             encoded_msg = client_socket.recv(1024)
-            print(encoded_msg.decode('utf-8'))
+            msg = encoded_msg.decode()
+            print(msg)
+            sentences = msg.split('\n')
+            h, p = sentences[0].split()
+            client : socket = clients[(h, int(p))]
+            print(client)
+            msg = sentences[1]
+            if client != None:
+                client.send(msg.encode())
         except KeyboardInterrupt:
             break
 
