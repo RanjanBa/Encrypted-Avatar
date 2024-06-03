@@ -2,7 +2,8 @@ import socket
 import threading
 from typing import List
 
-import rsa_encrypt_decrypt
+# import rsa_encrypt_decrypt
+import kyber_encrypt_decrypt
 
 host = "127.0.0.1"
 port = 9000
@@ -84,7 +85,8 @@ def handleClients(client : Client):
     print(f"Number of clients {len(clients)}")
     
     print("Sending...")
-    pk, sk = rsa_encrypt_decrypt.getKey()
+    # pk, sk = rsa_encrypt_decrypt.getKey()
+    pk, sk = kyber_encrypt_decrypt.getKey()
     
     public_key = bytes.hex(pk)
     secret_key = bytes.hex(sk)
@@ -144,7 +146,8 @@ def parseMessage(client : Client, msg : str):
             return
         
         public_key = bytes.fromhex(receiver_client.public_key)
-        enc_session_key, tag, ciphertext, nonce = rsa_encrypt_decrypt.encrypt(new_msg, public_key)
+        # enc_session_key, tag, ciphertext, nonce = rsa_encrypt_decrypt.encrypt(new_msg, public_key)
+        enc_session_key, tag, ciphertext, nonce = kyber_encrypt_decrypt.encrypt(new_msg, public_key)
         
         response = f"encrypt_msg\nenc_session_key:{bytes.hex(enc_session_key)}\n tag:{bytes.hex(tag)}\n ciphertext:{bytes.hex(ciphertext)}\n nonce:{bytes.hex(nonce)}"
         receiver_client.sendMessage(response)
@@ -174,7 +177,9 @@ def parseMessage(client : Client, msg : str):
             return
 
         public_key = bytes.fromhex(public_key)
-        enc_session_key, tag, ciphertext, nonce = rsa_encrypt_decrypt.encrypt(msg, public_key)
+        # enc_session_key, tag, ciphertext, nonce = rsa_encrypt_decrypt.encrypt(msg, public_key)
+        enc_session_key, tag, ciphertext, nonce = kyber_encrypt_decrypt.encrypt(msg, public_key)
+        
         
         response = f"encrypt_msg\nenc_session_key:{bytes.hex(enc_session_key)}\ntag:{bytes.hex(tag)}\nciphertext:{bytes.hex(ciphertext)}\nnonce:{bytes.hex(nonce)}"
         client.sendMessage(response)
@@ -220,7 +225,8 @@ def parseMessage(client : Client, msg : str):
         ciphertext = bytes.fromhex(ciphertext)
         nonce = bytes.fromhex(nonce)
 
-        decrypted_msg = rsa_encrypt_decrypt.decrypt(private_key, enc_session_key, tag, ciphertext, nonce)
+        # decrypted_msg = rsa_encrypt_decrypt.decrypt(private_key, enc_session_key, tag, ciphertext, nonce)
+        decrypted_msg = kyber_encrypt_decrypt.decrypt(private_key, enc_session_key, tag, ciphertext, nonce)
         client.sendMessage(f"decrypt_msg\n{decrypted_msg}")
         print("Decrypted Msg Sent...")
     else:
