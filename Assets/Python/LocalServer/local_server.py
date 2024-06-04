@@ -13,6 +13,7 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((host, port))
 server.listen(5)
 
+
 class Client:
     def __init__(self, socket : socket.socket) -> None:
         self.__socket = socket
@@ -41,28 +42,16 @@ class Client:
 
     def sendMessage(self, msg : str) -> None:
         self.__socket.send(msg.encode("utf-8"))
-        # try:
-        #     self.__socket.send(msg.encode("utf-8"))
-        # except ConnectionResetError as err:
-        #     print(str(err))
-        #     raise Exception()
         
     def recvMessage(self) -> str:
         msg = self.socket.recv(data_size)
         return msg.decode("utf-8")
-        # try: 
-        #     msg = self.socket.recv(data_size)
-        #     return msg.decode("utf-8")
-        # except:
-        #     print("Error in receiving!")
-        #     raise Exception()
 
     def close(self) -> None:
         try:
             self.socket.close()
         except:
             print("Error in socket closing!")
-            raise Exception()
 
 
 clients : List[Client] = []
@@ -122,37 +111,7 @@ def parseMessage(client : Client, msg : str):
     
     msg_code = sentences[0].strip()
 
-    if msg_code == "send_msg":
-        receiver_name = sentences[1].strip()
-        new_msg = ""
-        for i in range(2, len(sentences)):
-            new_msg += sentences[i]
-            new_msg += '\n'
-        
-        receiver_client = None
-        names = []
-        for client in clients:
-            names.append(client.alias)
-        print("Clients' names are : ", end = "")
-        print(names)
-        for client in clients:
-            
-            if client.alias == receiver_name:
-                receiver_client = client
-                break
-        
-        if receiver_client == None:
-            print(f"No client is found with name '{receiver_name}'")
-            return
-        
-        public_key = bytes.fromhex(receiver_client.public_key)
-        # enc_session_key, tag, ciphertext, nonce = rsa_encrypt_decrypt.encrypt(new_msg, public_key)
-        enc_session_key, tag, ciphertext, nonce = kyber_encrypt_decrypt.encrypt(new_msg, public_key)
-        
-        response = f"encrypt_msg\nenc_session_key:{bytes.hex(enc_session_key)}\n tag:{bytes.hex(tag)}\n ciphertext:{bytes.hex(ciphertext)}\n nonce:{bytes.hex(nonce)}"
-        receiver_client.sendMessage(response)
-        print(f"Msg Sent to Receiver {receiver_client.alias}...")
-    elif msg_code == "encrypt_msg":
+    if msg_code == "encrypt_msg":
         print("Encrypting Msg...")
         msg = ""
         public_key = ""
@@ -178,9 +137,7 @@ def parseMessage(client : Client, msg : str):
 
         public_key = bytes.fromhex(public_key)
         # enc_session_key, tag, ciphertext, nonce = rsa_encrypt_decrypt.encrypt(msg, public_key)
-        enc_session_key, tag, ciphertext, nonce = kyber_encrypt_decrypt.encrypt(msg, public_key)
-        
-        
+        enc_session_key, tag, ciphertext, nonce = kyber_encrypt_decrypt.encrypt(msg, public_key)  
         response = f"encrypt_msg\nenc_session_key:{bytes.hex(enc_session_key)}\ntag:{bytes.hex(tag)}\nciphertext:{bytes.hex(ciphertext)}\nnonce:{bytes.hex(nonce)}"
         client.sendMessage(response)
         print("Encrypted Msg Sent...")

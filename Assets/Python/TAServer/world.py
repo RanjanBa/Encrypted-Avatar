@@ -9,5 +9,5 @@ class World:
         self.__clients.append(_client)
 
     def removeClient(self, _client : Client):
-        self.__clients.remove(_client) 
+        self.__clients.remove(_client)
     
