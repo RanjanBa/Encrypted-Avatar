@@ -1,9 +1,8 @@
 import sys
-from Crypto.Cipher import AES
-from Crypto.Hash import SHA256
-from Crypto.Signature import DSS
-from Crypto.PublicKey import ECC
 
+sys.path.append('./Kyber')
+
+from Crypto.Cipher import AES
 from kyber import Kyber1024
 
 # Kyber512.set_drbg_seed(bytes.fromhex('061550234D158C5EC95595FE04EF7A25767F2E24CC2BC479D09D86DC9ABCFDE7056A8C266F9EF97ED08541DBD2E1FFA1'))
