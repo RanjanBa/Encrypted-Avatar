@@ -14,9 +14,9 @@ public class AvatarUIView : MonoBehaviour
     [SerializeField]
     private Button m_sendMsgBtn;
 
-    private Client m_avatar;
+    private LocalClient m_avatar;
 
-    public Client Avatar
+    public LocalClient Avatar
     {
         get { return m_avatar; }
         set { 
@@ -36,7 +36,7 @@ public class AvatarUIView : MonoBehaviour
         get { return m_messageInputField; }
     }
 
-    private void UpdateAvatarView(Client _avatar)
+    private void UpdateAvatarView(LocalClient _avatar)
     {
         m_avatarNameText.text = _avatar.alias;
     }

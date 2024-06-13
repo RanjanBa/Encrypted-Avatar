@@ -1,57 +1,26 @@
+import sys
+
+sys.path.append('./')
+sys.path.append('./Kyber')
+
 import socket
 import threading
+import json
 from typing import List
+from client import Client
+from utilities import Instructions, Keys
 
 # import rsa_encrypt_decrypt
 import kyber_encrypt_decrypt
 
+DATA_BUFFER_SIZE = 10240
+
 host = "127.0.0.1"
 port = 9000
-data_size = 10240
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((host, port))
 server.listen(5)
-
-
-class Client:
-    def __init__(self, socket : socket.socket) -> None:
-        self.__socket = socket
-        self.__alias = None
-        self.__public_key = None
-    
-    @property
-    def socket(self):
-        return self.__socket
-    
-    @property
-    def alias(self):
-        return self.__alias
-    
-    @property
-    def public_key(self):
-        return self.__public_key
-    
-    @alias.setter
-    def alias(self, name):
-        self.__alias = name
-    
-    @public_key.setter
-    def public_key(self, key):
-        self.__public_key = key
-
-    def sendMessage(self, msg : str) -> None:
-        self.__socket.send(msg.encode("utf-8"))
-        
-    def recvMessage(self) -> str:
-        msg = self.socket.recv(data_size)
-        return msg.decode("utf-8")
-
-    def close(self) -> None:
-        try:
-            self.socket.close()
-        except:
-            print("Error in socket closing!")
 
 
 clients : List[Client] = []
@@ -64,159 +33,150 @@ def broadcast(msg : str):
 
 def handleClients(client : Client):
     client.sendMessage(f"You are connected to the server {server.getsockname()} successfully")
-    alias = client.recvMessage()
-    alias = alias.strip('\n')
-    client.alias = alias
+    info = {}
+    info[Keys.MESSAGE.value] = f"New client is connected to the server!\n"
+    broadcast(json.dumps(info))
     
-    print(f"The alias of the new client {client.socket.getpeername()} is {alias}")
-    broadcast(f"{alias} is connected to the server!\n")
     clients.append(client)
     print(f"Number of clients {len(clients)}")
     
-    print("Sending...")
+    print("Generating and Sending Public and Secret Key...")
     # pk, sk = rsa_encrypt_decrypt.getKey()
     pk, sk = kyber_encrypt_decrypt.getKey()
     
     public_key = bytes.hex(pk)
     secret_key = bytes.hex(sk)
 
-    client.sendMessage(f"generate_key\npublic_key : {public_key}\nprivate_key : {secret_key}")
-    print("Sending key Completed...")
-    client.public_key = public_key
+    info : dict[str, str] = {}
+    
+    info[Keys.INSTRUCTION.value] = Instructions.GENERATE_KEY.value
+    info[Keys.PUBLIC_KEY.value] = public_key
+    info[Keys.PRIVATE_KEY.value] = secret_key
+    msg = json.dumps(info)
+    client.sendMessage(msg)
+    print("Public and Secret key Sent...")
 
     while True:
         try:
-            msg = client.recvMessage()
-            if msg != None and msg != "":
-                print(msg)
-            else:
-                continue
-            
-            print(f"Msg received from {client.alias} : {msg}")
+            msg = client.receiveMessage(DATA_BUFFER_SIZE)
+            if msg == None or msg == "":
+                print("No message is sent")
+                break
+
+            print(f"Msg received from {client.socket.getpeername()} : {msg}")
             parseMessage(client, msg)
         except KeyboardInterrupt:
             print("Keyboard Interruption...")
-            client.close()
-        except:
-            if(client in clients):
-                clients.remove(client)
-            client.close()
-            print(f"{client.alias} left the server!")
-            print(f"Number of clients {len(clients)}")
             break
+        # except Exception as e:
+        #     print(f"Some error occurs... {e}")
+        #     break
+        
+    if(client in clients):
+        clients.remove(client)
+    client.close()
+    print(f"Client left the server!")
+    print(f"Number of clients {len(clients)}")
 
 
 def parseMessage(client : Client, msg : str):
-    sentences = msg.split('\n')
-    
-    msg_code = sentences[0].strip()
+    parsedMsg = json.loads(msg)
+    if not Keys.INSTRUCTION.value in parsedMsg:
+        print("No instruction is given with the msg...")
+        return
 
-    if msg_code == "encrypt_msg":
+    msg_code = parsedMsg[Keys.INSTRUCTION.value]
+
+    if msg_code == Instructions.ENCRYPT_MSG.value:
         print("Encrypting Msg...")
-        msg = ""
-        public_key = ""
-        for i in range(1, len(sentences)):
-            sentence = sentences[i].strip()
-            if len(sentence) == 0:
-                continue
+        msg = parsedMsg[Keys.MESSAGE.value]
+        public_key = parsedMsg[Keys.PUBLIC_KEY.value]
         
-            words = sentence.split(":")
-            for i in range(len(words)):
-                words[i] = words[i].strip()
-            
-            if words[0] == "msg":
-                msg = words[1]
-            elif words[0] == "public_key":
-                public_key = words[1]
-            else:
-                print("Invalid msg!")
-        
-        if msg == "" or public_key == "":
-            print("Invalid msg or public key!")
+        if public_key == "":
+            print("Invalid public key.")
             return
 
         public_key = bytes.fromhex(public_key)
-        # enc_session_key, tag, ciphertext, nonce = rsa_encrypt_decrypt.encrypt(msg, public_key)
-        enc_session_key, tag, ciphertext, nonce = kyber_encrypt_decrypt.encrypt(msg, public_key)  
-        response = f"encrypt_msg\nenc_session_key:{bytes.hex(enc_session_key)}\ntag:{bytes.hex(tag)}\nciphertext:{bytes.hex(ciphertext)}\nnonce:{bytes.hex(nonce)}"
+        # enc_session_key, tag, cipher_text, nonce = rsa_encrypt_decrypt.encrypt(msg, public_key)
+        enc_session_key, tag, cipher_text, nonce = kyber_encrypt_decrypt.encrypt(msg, public_key)  
+        info : dict[str, str] = {}
+        info[Keys.INSTRUCTION.value] = Instructions.ENCRYPT_MSG.value
+        info[Keys.ENC_SESSION_KEY.value] = bytes.hex(enc_session_key)
+        info[Keys.TAG.value] = bytes.hex(tag)
+        info[Keys.CIPHER_TEXT.value] = bytes.hex(cipher_text)
+        info[Keys.NONCE.value] = bytes.hex(nonce)
+        response = json.dumps(info)
         client.sendMessage(response)
         print("Encrypted Msg Sent...")
-    elif msg_code == "decrypt_msg":
+    elif msg_code == Instructions.DECRYPT_MSG.value:
         print("Decrypting Msg...")
-        
-        private_key = ""
-        enc_session_key = ""
-        tag = ""
-        ciphertext = ""
-        nonce = ""
+        private_key = parsedMsg[Keys.PRIVATE_KEY.value]
+        enc_session_key = parsedMsg[Keys.ENC_SESSION_KEY.value]
+        tag = parsedMsg[Keys.TAG.value]
+        cipher_text = parsedMsg[Keys.CIPHER_TEXT.value]
+        nonce = parsedMsg[Keys.NONCE.value]
 
-        for i in range(1, len(sentences)):
-            sentence = sentences[i].strip()
-            if len(sentence) == 0:
-                continue
-
-            words = sentence.split(":")
-            for i in range(len(words)):
-                words[i] = words[i].strip()
-            
-            if words[0] == "private_key":
-                private_key = words[1]
-            elif words[0] == "enc_session_key":
-                enc_session_key = words[1]
-            elif words[0] == "tag":
-                tag = words[1]
-            elif words[0] == "ciphertext":
-                ciphertext = words[1]
-            elif words[0] == "nonce":
-                nonce = words[1]
-            else:
-                print("Invalid msg!")
-
-        if private_key == "" or enc_session_key == "" or tag == "" or ciphertext == "" or nonce == "":
+        if private_key == "" or enc_session_key == "" or tag == "" or cipher_text == "" or nonce == "":
             print("Invalid private key or enc_session_key or tag or ciphertext or nonce!")
             return
 
         private_key = bytes.fromhex(private_key)
         enc_session_key = bytes.fromhex(enc_session_key)
         tag = bytes.fromhex(tag)
-        ciphertext = bytes.fromhex(ciphertext)
+        cipher_text = bytes.fromhex(cipher_text)
         nonce = bytes.fromhex(nonce)
 
-        # decrypted_msg = rsa_encrypt_decrypt.decrypt(private_key, enc_session_key, tag, ciphertext, nonce)
-        decrypted_msg = kyber_encrypt_decrypt.decrypt(private_key, enc_session_key, tag, ciphertext, nonce)
-        client.sendMessage(f"decrypt_msg\n{decrypted_msg}")
+        # decrypted_msg = rsa_encrypt_decrypt.decrypt(private_key, enc_session_key, tag, cipher_text, nonce)
+        decrypted_msg = kyber_encrypt_decrypt.decrypt(private_key, enc_session_key, tag, cipher_text, nonce)
+        info : dict[str, str] = {}
+        info[Keys.INSTRUCTION.value] = Instructions.DECRYPT_MSG.value
+        info[Keys.MESSAGE.value] = decrypted_msg
+        client.sendMessage(json.dumps(info))
         print("Decrypted Msg Sent...")
+    elif msg_code == Instructions.GENERATE_KEY.value:
+        print("Generating and Sending Public and Secret Key...")
+        # pk, sk = rsa_encrypt_decrypt.getKey()
+        pk, sk = kyber_encrypt_decrypt.getKey()
+        
+        public_key = bytes.hex(pk)
+        secret_key = bytes.hex(sk)
+
+        info : dict[str, str] = {}
+        info[Keys.INSTRUCTION.value] = Instructions.GENERATE_KEY.value
+        info[Keys.PUBLIC_KEY.value] = public_key
+        info[Keys.PRIVATE_KEY.value] = secret_key
+        msg = json.dumps(info)
+        client.sendMessage(msg)
+        print("Public and Secret key Sent...")
     else:
-        # client.sendMessage(f"Error in the request!")
-        print("Error in the request!")
+        print("Message is sent without any instruction...")
 
 
 def startServer():
-    try:
-        while True:
-            try:
-                print(f"Number of clients : {len(clients)}")
-                print("Server is running and waiting for connection ...")
-                client_socket, address = server.accept()
-                print(f"New Client establishes connection with {address}")
-                
-                client = Client(client_socket)
-                
-                thread = threading.Thread(target=handleClients, args=(client,))
-                thread.start()
-            except:
-                print("Error start server!")
-                s = input("Enter 'Yes' for continuation... : ")
+    while True:
+        try:
+            print("Server is running and waiting for connection ...")
+            client_socket, address = server.accept()
+            print(f"New Client {address} is established.")
+            
+            client = Client(client_socket)
+            
+            thread = threading.Thread(target=handleClients, args=(client,))
+            thread.daemon = True
+            thread.start()
+        except KeyboardInterrupt:
+            print("Keyboard Interruption...")
+            server.close()
+            break
+        except:
+            print("Error start server!")
+            s = input("Enter 'Yes' for continuation... : ")
 
-                if s.lower() == 'yes':
-                    continue
-                else:
-                    server.close()
-                    break
-    except KeyboardInterrupt:
-        print("Keyboard Interruption...")
-    finally:
-        server.close()
+            if s.lower() == 'yes':
+                continue
+            else:
+                server.close()
+                break
 
 
 if __name__ == "__main__":

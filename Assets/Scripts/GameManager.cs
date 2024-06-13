@@ -78,7 +78,7 @@ public class GameManager : MonoBehaviour
         m_rightAvatarView.gameObject.SetActive(false);
     }
 
-    public void SetClient(Client _client) {
+    public void SetClient(LocalClient _client) {
         if (m_leftAvatarView.Avatar == null)
         {
             m_leftAvatarView.Avatar = _client;

@@ -1,5 +1,7 @@
 from socket import socket, AF_INET, SOCK_STREAM
 from threading import Thread
+from utilities import Instructions, Keys
+import json
 
 client = socket(AF_INET, SOCK_STREAM)
 
@@ -15,9 +17,17 @@ print(client.getsockname())
 
 encoded_msg = client.recv(1024)
 print(encoded_msg.decode())
-client.send("new client".encode())
+
+encoded_msg = client.recv(1024)
+print(encoded_msg.decode())
 
 is_running = True
+
+info = {}
+info[Keys.INSTRUCTION.value] = Instructions.GET_KEY.value
+info[Keys.PUBLIC_KEY.value] = "waidiwhauihduiwhad"
+
+client.send(json.dumps(info).encode())
 
 def ReceiveThread():
     while True:
@@ -44,37 +54,56 @@ while is_running:
     try:
         ch = input("Enter CA (create avatar) or CW (create world) or JW (join world) or SM (send msg) or AW (all worlds) or WI (world info) or AI (avatar info)")
         ch = ch.lower()
+        info : dict = {}
         if ch == 'ca' or ch == 'create avatar':
-            msg = "create_avatar\n"
             avatar_name = input("Enter avatar name : ")
-            msg += avatar_name
+            info[Keys.INSTRUCTION.value] = Instructions.CREATE_AVATAR.value
+            info[Keys.AVATAR_NAME.value] = avatar_name
+            msg = json.dumps(info)
             client.send(msg.encode())
         elif ch == 'cw' or ch == 'create world':
             world_name = input("Enter world name to create : ")
-            msg = "create_world\n" + world_name
+            info[Keys.INSTRUCTION.value] = Instructions.CREATE_WORLD.value
+            info[Keys.WORLD_NAME.value] = world_name
+            msg = json.dumps(info)
             client.send(msg.encode())
         elif ch == "jw" or ch == 'join world':
             world_id = input("Enter world id to join : ")
-            msg = "join_world\n" + world_id
+            avatar_id = input("Enter avatar id to join: ")
+            info[Keys.INSTRUCTION.value] = Instructions.JOIN_WORLD.value
+            info[Keys.WORLD_ID.value] = world_id
+            info[Keys.AVATAR_ID.value] = avatar_id
+            msg = json.dumps(info)
             client.send(msg.encode())
         elif ch == 'sm' or ch == 'send msg':
-            h = '127.0.0.1'
-            p = input("Enter port : ")
+            avatar_id = input("Enter avatar id to send : ")
             msg = input("Enter msg to send : ")
-            enc_msg = "send_msg\n" + h + " " + str(p) + "\n"
-            enc_msg += msg
+            info[Keys.INSTRUCTION.value] = Instructions.SEND_MSG.value
+            info[Keys.AVATAR_ID.value] = avatar_id
+            info[Keys.MESSAGE.value] = msg
+            enc_msg = json.dumps(info)
+            print(enc_msg)
             client.send(enc_msg.encode())
         elif ch == 'aw' or ch == 'all worlds':
-            client.send("all_worlds\n".encode())
+            info[Keys.INSTRUCTION.value] = Instructions.ALL_WORLDS.value
+            msg = json.dumps(info)
+            client.send(msg.encode())
         elif ch == 'wi' or ch == 'world info':
             world_id = input("Enter world id to get info : ")
-            client.send(f"world_info\n{world_id}".encode())
+            info[Keys.INSTRUCTION.value] = Instructions.WORLD_INFO.value
+            info[Keys.WORLD_ID.value] = world_id
+            msg = json.dumps(info)
+            client.send(msg.encode())
         elif ch == 'ai' or ch == 'avatar info':
-            client.send("avatar_info\n".encode())
+            info[Keys.INSTRUCTION.value] = Instructions.AVATAR_INFO.value
+            msg = json.dumps(info)
+            client.send(msg.encode())
         elif ch == 'exit':
             client.close()
             break
     except KeyboardInterrupt:
         client.close()
+        break
     except:
         client.close()
+        break

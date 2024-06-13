@@ -10,7 +10,7 @@ public class Metaverse : MonoBehaviour
     [SerializeField]
     private GameObject[] m_avatarPrefabs;
 
-    private List<Client> m_clients = new List<Client>();
+    private List<LocalClient> m_clients = new List<LocalClient>();
 
     private void Awake()
     {
@@ -39,7 +39,7 @@ public class Metaverse : MonoBehaviour
 
         GameObject gm = Instantiate(m_avatarPrefabs[m_clients.Count], transform);
         gm.name = _aliasName;
-        Client client = gm.GetComponent<Client>();
+        LocalClient client = gm.GetComponent<LocalClient>();
         client.alias = _aliasName;
 
         if (client != null)

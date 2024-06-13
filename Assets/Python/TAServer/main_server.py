@@ -1,5 +1,6 @@
 import sys
 
+sys.path.append('./')
 sys.path.append('./Kyber')
 
 from socket import socket, AF_INET, SOCK_STREAM
@@ -7,10 +8,12 @@ from threading import Thread
 from client import Client
 from world import World
 from avatar import Avatar
-from utilities import Instructions
+from utilities import Instructions, Keys
 from kyber import Kyber1024
+import json
 import uuid
 
+DATA_BUFFER_SIZE = 10240
 host = "127.0.0.1"
 port = 12000
 
@@ -33,101 +36,136 @@ def getClient(address, port) -> Client:
     return None
 
 
-def createAvatar(client : Client, sentences : list[str]):
-    avatar_name = sentences[0]
+def createAvatar(client : Client, parsedMsg : dict):
+    if not Keys.AVATAR_NAME.value in parsedMsg:
+        print("No avatar name key is present in the msg.")
+        return
+
+    avatar_name = parsedMsg[Keys.AVATAR_NAME.value]
     avatar_id = str(uuid.uuid4())
     
     avatar = Avatar(avatar_id, avatar_name)
     
     if client.addAvatar(avatar):
         print(f"New avatar is created with id : {avatar_id} , name : {avatar_name}")
+        client.sendMessage(f"New avatar is created with id : {avatar_id} , name : {avatar_name}")
     else:
         print(f"Avatar can't be created with id {avatar_id}. Client already have that avatar")
+        client.sendMessage(f"Avatar can't be created with id {avatar_id}. Client already have that avatar")
 
 
-def createNewWorld(client : Client, sentences : list[str]):
-    if len(sentences) < 1:
-        print("Can't create new world. All parameters are not given.")
+def createNewWorld(client : Client, parsedMsg : dict):
+    if not Keys.WORLD_NAME.value in parsedMsg:
+        print("No world name key is present in the msg.")
         return
 
+    world_name = parsedMsg[Keys.WORLD_NAME.value]    
+    
     world_id = str(uuid.uuid4())
     if worldsDict.__contains__(world_id):
         print(f"Can't create new world. World is already exist with world id {world_id}.")
         client.sendMessage(f"Can't create new world. World is already exist with world id {world_id}.")
     
-    world_name = sentences[0].strip()
-    
     world = World(world_id, world_name)
-    world.addClient(client)
     worldsDict[world_id] = world
     client.sendMessage(f"World is created with world id {world_id}.")
 
 
-def joinWorld(client : Client, sentences : list[str]):
-    world_id = sentences[0].strip()
-    
+def joinWorld(client : Client, parsedMsg : dict):
+    if not Keys.WORLD_ID.value in parsedMsg:
+        print("No world id key is present in the msg.")
+        return
+
+    if not Keys.AVATAR_ID.value in parsedMsg:
+        print("No avatar id key is present in the msg.")
+        return
+
+    world_id = parsedMsg[Keys.WORLD_ID.value]
     if not worldsDict.__contains__(world_id):
         print(f"Can't join the world with id {world_id}. World with that id doesn't exists.")
         client.sendMessage(f"Can't join the world with id {world_id}. World with that id doesn't exists.")
         return
     
-    if client in worldsDict[world_id].clients:
-        print(f"You already joinned the world with id {world_id}.")
-        client.sendMessage(f"You already joinned the world with id {world_id}.")
+    avatar_id = parsedMsg[Keys.AVATAR_ID.value]
+    
+    avatar = client.getAvatar(avatar_id)
+    if avatar in worldsDict[world_id]:
+        print(f"{avatar.avatarName} has already joinned the world with id {world_id}.")
+        client.sendMessage(f"You have already joinned the world with id {world_id}.")
         return
     
-    worldsDict[world_id].addClient(client)
-    client.sendMessage(f"You joinned to the world with id {world_id}")
+    worldsDict[world_id].addAvatar(avatar)
+    client.sendMessage(f"You join to the world with id {world_id}")
 
 
-def sendMessage(client : Client, sentences : list[str]):
-    h, p = sentences[0].split()
-    receiver : Client = getClient(h, int(p))
-    msg = ""
-    for s in sentences[1:]:
-        msg += s
+def sendMessage(client : Client, parsedMsg : dict):
+    if not Keys.AVATAR_ID.value in parsedMsg:
+        print("No avatar id key is present in the msg.")
+        return
+
+    if not Keys.MESSAGE.value in parsedMsg:
+        print("No message key is present in the msg.")
+        return
+
+    avatar_id = parsedMsg[Keys.AVATAR_ID.value]
+    
+    receiver : Client = None
+    for c in clients:
+        av = c.getAvatar(avatar_id)
+        if av != None:
+            print("FOUND RECEIVER...")
+            receiver = c
+            break
+
+    msg = parsedMsg[Keys.MESSAGE.value]
     
     if receiver != None:
         if receiver != client:
             receiver.sendMessage(msg)
         else:
-            print("Can't send to it self...")
+            print("Can't send to itself...")
+            client.sendMessage("Can't send to itself...")
     else:
         print("Can't find receiver")
         client.sendMessage("Can't find receiver client")
 
 
-def allWorlds(client : Client, sentences : list[str]):
+def allWorlds(client : Client, parsedMsg : dict):
     msg = "all_worlds\n"
+    print(type(worldsDict))
     
-    for k, v in worldsDict:
-        msg += "(" + k + " , " + v + ")\n"
+    for k in worldsDict:
+        msg += "(" + k + " , " + worldsDict[k].worldName + ")\n"
     
     print(msg)
     client.sendMessage(msg)
 
 
-def worldInfo(client : Client, sentences : list[str]):
-    world_id = sentences[0].strip()
+def worldInfo(client : Client, parsedMsg : dict):
+    if not Keys.WORLD_ID.value in parsedMsg:
+        print("No world id key is present in the msg.")
+        return
+    
+    world_id = parsedMsg[Keys.WORLD_ID.value]
 
     if not worldsDict.__contains__(world_id):
         print(f"Can't get info of the world with id {world_id}. World with that id doesn't exists.")
         client.sendMessage(f"Can't get info of the world with id {world_id}. World with that id doesn't exists.")
         return
 
-    world_clients = worldsDict[world_id].clients
+    world_avatars = worldsDict[world_id].avatars
     msg = "world_infos\n"
-    msg += "total clients : " + str(len(world_clients)) + "\n"
-    for idx in range(len(world_clients)):
-        msg += str(world_clients[idx].socket.getpeername())
-        if idx < len(world_clients) - 1:
+    msg += "total avatars : " + str(len(world_avatars)) + "\n"
+    for idx in range(len(world_avatars)):
+        msg += str(world_avatars[idx].avatarName)
+        if idx < len(world_avatars) - 1:
             msg += "\n"
     
     print(msg)
     client.sendMessage(msg)
 
 
-def clientAvatarInfo(client : Client, sentences : list[str]):
+def clientAvatarInfo(client : Client, parsedMsg : dict):
     msg = ""
     for idx, avatar in enumerate(client.avatars):
         msg += "(" + avatar.avatarName + " , " + avatar.avatarID + ")"
@@ -139,28 +177,28 @@ def clientAvatarInfo(client : Client, sentences : list[str]):
 
 
 def parseMessage(msg : str, client : Client):
-    sentences = msg.split('\n')
-
-    if len(sentences) == 0:
-        print("Message is sent with whitespaces...")
+    parsedMsg : dict = json.loads(msg)
+    
+    if not Keys.INSTRUCTION.value in parsedMsg:
+        print("No instruction is given with the msg...")
         return
 
-    instruction = sentences[0].strip()
+    instruction = parsedMsg[Keys.INSTRUCTION.value]
 
     if instruction == Instructions.CREATE_AVATAR.value:
-        createAvatar(client, sentences[1:])
+        createAvatar(client, parsedMsg)
     elif instruction == Instructions.AVATAR_INFO.value:
-        clientAvatarInfo(client, sentences[1:])
+        clientAvatarInfo(client, parsedMsg)
     elif instruction == Instructions.CREATE_WORLD.value:
-        createNewWorld(client, sentences[1:])
+        createNewWorld(client, parsedMsg)
     elif instruction == Instructions.JOIN_WORLD.value:
-        joinWorld(client, sentences[1:])
-    elif instruction == Instructions.SEND.value:
-        sendMessage(client, sentences[1:])
+        joinWorld(client, parsedMsg)
     elif instruction == Instructions.ALL_WORLDS.value:
-        allWorlds(client, sentences[1:])
+        allWorlds(client, parsedMsg)
     elif instruction == Instructions.WORLD_INFO.value:
-        worldInfo(client, sentences[1:])
+        worldInfo(client, parsedMsg)
+    elif instruction == Instructions.SEND_MSG.value:
+        sendMessage(client, parsedMsg)
     else:
         print("Message is sent without any instruction...")
 
@@ -170,36 +208,37 @@ def handleClient(client_socket : socket):
     client = getClient(h, p)
     
     if client != None:
-        print("Already joinned...")
-        client_socket.send("You are already joinned...".encode())
-    
-    client = Client(client_socket)
-    clients.add(client)
-    print(f"After adding new client, Number of clients {len(clients)}.")
+        client.sendMessage("You are already joinned...")
+        print(f"Already joinned. Number of clients joinned {len(clients)}")
+    else:
+        client = Client(client_socket)
+        clients.add(client)
+        client.sendMessage("You join newly...")
+        print(f"After adding new client, Number of clients {len(clients)}.")
     
     try:
-        client.sendMessage(f"Hello Client!\npublic_key: {bytes.hex(pk)}")
-        msg = client.receiveMessage(1024)
-        print(msg)
-    except:
-        print("Some error in receiving or sending data...")
-        clients.remove(client)
-        client.close()
-        print(f"Number of clients remaining {len(clients)}.")
-        return
-
-    while True:
-        try:
-            msg = client.receiveMessage(1024)
-            if msg == None or msg == '':
-                print("No message is sent")
+        client.sendMessage(f"public_key:{bytes.hex(pk)}")
+        client_sk = client.receiveMessage(DATA_BUFFER_SIZE)
+        print(client_sk)
+        while True:
+            try:
+                msg = client.receiveMessage(DATA_BUFFER_SIZE)
+                if msg == None or msg == '':
+                    print("No message is sent")
+                    client.close()
+                    break
+                print(msg)
+                parseMessage(msg, client)
+            except KeyboardInterrupt:
                 client.close()
                 break
-            print(msg)
-            parseMessage(msg, client)
-        except KeyboardInterrupt:
-            client.close()
-            break
+    except:
+        print("Some error in receiving or sending data...")
+        client.close()
+    
+    for av in client.avatars:
+        for w in worldsDict.values():
+            w.removeAvatar(av)
     
     clients.remove(client)
     print(f"Number of clients remaining {len(clients)}.")
