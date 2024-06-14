@@ -39,22 +39,6 @@ def handleClients(client : Client):
     
     clients.append(client)
     print(f"Number of clients {len(clients)}")
-    
-    print("Generating and Sending Public and Secret Key...")
-    # pk, sk = rsa_encrypt_decrypt.getKey()
-    pk, sk = kyber_encrypt_decrypt.getKey()
-    
-    public_key = bytes.hex(pk)
-    secret_key = bytes.hex(sk)
-
-    info : dict[str, str] = {}
-    
-    info[Keys.INSTRUCTION.value] = Instructions.GENERATE_KEY.value
-    info[Keys.PUBLIC_KEY.value] = public_key
-    info[Keys.PRIVATE_KEY.value] = secret_key
-    msg = json.dumps(info)
-    client.sendMessage(msg)
-    print("Public and Secret key Sent...")
 
     while True:
         try:
@@ -88,14 +72,13 @@ def parseMessage(client : Client, msg : str):
     msg_code = parsedMsg[Keys.INSTRUCTION.value]
 
     if msg_code == Instructions.ENCRYPT_MSG.value:
-        print("Encrypting Msg...")
-        msg = parsedMsg[Keys.MESSAGE.value]
         public_key = parsedMsg[Keys.PUBLIC_KEY.value]
-        
         if public_key == "":
             print("Invalid public key.")
             return
 
+        print("Encrypting Msg...")
+        msg = parsedMsg[Keys.MESSAGE.value]
         public_key = bytes.fromhex(public_key)
         # enc_session_key, tag, cipher_text, nonce = rsa_encrypt_decrypt.encrypt(msg, public_key)
         enc_session_key, tag, cipher_text, nonce = kyber_encrypt_decrypt.encrypt(msg, public_key)  
@@ -149,7 +132,7 @@ def parseMessage(client : Client, msg : str):
         client.sendMessage(msg)
         print("Public and Secret key Sent...")
     else:
-        print("Message is sent without any instruction...")
+        print(f"Message is sent without proper instruction -> {msg_code}")
 
 
 def startServer():

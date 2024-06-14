@@ -5,12 +5,11 @@ using System.Text;
 using UnityEngine;
 using System.Threading;
 using UnityEngine.Events;
+using Newtonsoft.Json;
 
 public class LocalClient : MonoBehaviour
 {
     private const int m_DATA_BUFFER_SIZE = 10240;
-
-    public string alias = "Ranjan";
 
     [SerializeField]
     private string m_ipAddress = "127.0.0.1";
@@ -19,59 +18,207 @@ public class LocalClient : MonoBehaviour
 
     private TcpClient m_localClient;
     private NetworkStream m_stream;
-    private Thread m_listeningDataThread;
+    private Thread m_receiveThread;
 
-    private string m_privateKey;
-    private string m_publicKey;
-    private EncryptedMessage m_encryptedMessage;
-    private bool m_isDecryptedMsgReceived;
-    private string m_decryptedMsg;
-    private Animator m_animator;
-
-    public UnityAction<string> onDecryptedMsgReceived;
-
-    private void Awake()
-    {
-        m_animator = GetComponent<Animator>();
-    }
+    public Action<string, string> onKeyGenerated;
+    public Action<Dictionary<string, string>> onEncryptedMsgReceived;
+    public Action<string> onDecryptedMsgReceived;
+    public Action onConnectedWithServer;
 
     private void Start()
     {
-        ConnectToLocalServer();
-    }
+        ConnectToServer();
 
-    private void Update()
-    {
-        if(m_isDecryptedMsgReceived)
+        onDecryptedMsgReceived += (_msg) =>
         {
-            onDecryptedMsgReceived(m_decryptedMsg);
-            m_isDecryptedMsgReceived = false;
-            m_decryptedMsg = "";
-        }
-
-        m_animator.SetInteger("anim_id", UnityEngine.Random.Range(1, 5));
+            Debug.Log(_msg);
+        };
     }
 
-    private void ConnectToLocalServer()
+    private void OnApplicationQuit()
+    {
+        m_localClient?.Close();
+        m_receiveThread?.Abort();
+    }
+
+    private void ConnectToServer()
     {
         try
         {
             m_localClient = new TcpClient(m_ipAddress, m_port);
             m_stream = m_localClient.GetStream();
             Debug.Log("Connected to local server...");
+            onConnectedWithServer?.Invoke();
 
-            m_listeningDataThread = new Thread(new ThreadStart(ListeningForMsgFromServer))
+            m_receiveThread = new Thread(new ThreadStart(ListeningServerForMsg))
             {
                 IsBackground = true
             };
-            m_listeningDataThread.Start();
-
-            SendMessageToServer(alias + "\n");
+            m_receiveThread.Start();
         }
         catch (SocketException e)
         {
             Debug.LogError("SocketException: " + e.ToString());
         }
+    }
+
+    private void ListeningServerForMsg()
+    {
+        try
+        {
+            byte[] _bytes = new byte[m_DATA_BUFFER_SIZE];
+            while (true)
+            {
+                // Check if there's any data available on the network stream
+                if (m_stream.DataAvailable)
+                {
+                    int _length;
+                    // Read incoming stream into byte array.
+                    while ((_length = m_stream.Read(_bytes, 0, _bytes.Length)) != 0)
+                    {
+                        var incomingData = new byte[_length];
+                        Array.Copy(_bytes, 0, incomingData, 0, _length);
+                        // Convert byte array to string message.
+                        string _serverMsg = Encoding.UTF8.GetString(incomingData);
+#if UNITY_EDITOR
+                        if (_serverMsg.Length != 0)
+                        {
+                            Debug.Log(gameObject.name.ToUpper() + " received msg from server : " + _serverMsg);
+                        }
+                        else
+                        {
+                            Debug.Log(gameObject.name.ToUpper() + " received no msg from server.");
+                            continue;
+                        }
+#endif
+                        ParseMessage(_serverMsg);
+                    }
+                }
+            }
+        }
+        catch (SocketException socketException)
+        {
+            Debug.Log("Socket exception: " + socketException.ToString());
+        }
+    }
+
+    private void ParseMessage(string _message)
+    {
+        if (_message.Length == 0)
+        {
+            return;
+        }
+
+        Dictionary<string, string> _parsedMsg = JsonConvert.DeserializeObject<Dictionary<string, string>>(_message);
+
+        if (_parsedMsg.TryGetValue(Keys.INSTRUCTION, out string _msgCode))
+        {
+            if (_msgCode == Instructions.GENERATE_KEY)
+            {
+                ParseKeys(_parsedMsg);
+            }
+            else if (_msgCode == Instructions.ENCRYPT_MSG)
+            {
+                ParseEncryptedMessage(_parsedMsg);
+            }
+            else if (_msgCode == Instructions.DECRYPT_MSG)
+            {
+                ParseDecryptedMessage(_parsedMsg);
+            }
+#if UNITY_EDITOR
+            else
+            {
+                Debug.Log("Message is sent without proper instruction -> " + _msgCode);
+            }
+#endif
+        }
+#if UNITY_EDITOR
+        else
+        {
+            Debug.Log("No instruction is given with the msg...");
+        }
+#endif
+    }
+
+    private void ParseKeys(Dictionary<string, string> _parsedMsg)
+    {
+#if UNITY_EDITOR
+        Debug.Log("Parsing Public & Private Key...");
+#endif
+
+        if (!_parsedMsg.TryGetValue(Keys.PUBLIC_KEY, out string _publicKey))
+        {
+#if UNITY_EDITOR
+            Debug.Log("No Public Key is given in the msg.");
+#endif
+            return;
+        }
+
+        if (!_parsedMsg.TryGetValue(Keys.PRIVATE_KEY, out string _privateKey))
+        {
+#if UNITY_EDITOR
+            Debug.Log("No Private Key is given in the msg.");
+#endif
+            return;
+        }
+
+        onKeyGenerated?.Invoke(_publicKey, _privateKey);
+#if UNITY_EDITOR
+        Debug.Log("Parsing Public & Private Key Completed...");
+#endif
+    }
+
+    private void ParseEncryptedMessage(Dictionary<string, string> _parsedMsg)
+    {
+#if UNITY_EDITOR
+        Debug.Log("Parsing Encrypted Msg...");
+#endif
+        try
+        {
+            string encSessionKey = _parsedMsg[Keys.ENC_SESSION_KEY];
+            string tag = _parsedMsg[Keys.TAG];
+            string cipherText = _parsedMsg[Keys.CIPHER_TEXT];
+            string nonce = _parsedMsg[Keys.NONCE];
+
+            Dictionary<string, string> _encryptedMsg = new Dictionary<string, string>() {
+                {Keys.ENC_SESSION_KEY, encSessionKey},
+                {Keys.TAG, tag},
+                {Keys.CIPHER_TEXT, cipherText},
+                {Keys.NONCE, nonce}
+            };
+#if UNITY_EDITOR
+            Debug.Log("Parsing Encrypted Msg Completed...");
+#endif
+            onEncryptedMsgReceived?.Invoke(_encryptedMsg);
+        }
+#if UNITY_EDITOR
+        catch (ArgumentException e)
+        {
+            Debug.LogWarning("Error in parsing Encrypted Msg " + e.Message);
+            Debug.Log("Parsing Encrypted Msg Failed...");
+        }
+#endif
+    }
+
+    private void ParseDecryptedMessage(Dictionary<string, string> _parsedMsg)
+    {
+#if UNITY_EDITOR
+        Debug.Log("Parsing Decrypted Msg...");
+#endif
+
+        if (!_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
+        {
+#if UNITY_EDITOR
+            Debug.Log("No Msg Key is given in the msg.");
+#endif
+            return;
+        }
+
+        onDecryptedMsgReceived?.Invoke(_msg);
+
+#if UNITY_EDITOR
+        Debug.Log("Parsing Decrypted Msg Completed...");
+#endif
     }
 
     public void SendMessageToServer(string _message)
@@ -84,250 +231,73 @@ public class LocalClient : MonoBehaviour
 
         byte[] data = Encoding.UTF8.GetBytes(_message);
         m_stream.Write(data, 0, data.Length);
-        Debug.Log(alias + " sent message to server : " + _message);
+#if UNITY_EDITOR
+        Debug.Log(gameObject.name.ToUpper() + " sent message to server : " + _message);
+#endif
     }
 
-    private void ListeningForMsgFromServer()
+    public void EncryptMsg(string _message, string _publicKey)
     {
-        try
+        if (_publicKey == null || _publicKey.Length == 0)
         {
-            byte[] bytes = new byte[m_DATA_BUFFER_SIZE];
-            while (true)
-            {
-                // Check if there's any data available on the network stream
-                if (m_stream.DataAvailable)
-                {
-                    int length;
-                    // Read incoming stream into byte array.
-                    while ((length = m_stream.Read(bytes, 0, bytes.Length)) != 0)
-                    {
-                        var incomingData = new byte[length];
-                        Array.Copy(bytes, 0, incomingData, 0, length);
-                        // Convert byte array to string message.
-                        string serverMessage = Encoding.UTF8.GetString(incomingData);
-                        Debug.Log(alias + " received msg from server : " + serverMessage);
-                        List<string> sentences = ParseMessage(serverMessage);
-
-                        if (sentences.Count == 0)
-                        {
-                            return;
-                        }
-
-                        if (sentences[0] == "generate_key")
-                        {
-                            ParseKeys(sentences);
-                        }
-                        else if (sentences[0] == "encrypt_msg")
-                        {
-                            ParseEncryptedMessage(sentences);
-                        }
-                        else if (sentences[0] == "decrypt_msg")
-                        {
-                            ParseDecryptedMessage(sentences);
-                        }
-                    }
-                }
-            }
-        }
-        catch (SocketException socketException)
-        {
-            Debug.Log("Socket exception: " + socketException.ToString());
-        }
-    }
-
-    private void OnApplicationQuit()
-    {
-        m_localClient?.Close();
-        m_listeningDataThread?.Abort();
-    }
-
-    public void EncryptMsg(string _msg)
-    {
-        if (m_publicKey == null || m_publicKey.Length == 0)
-        {
+#if UNITY_EDITOR
             Debug.Log("Valid public key is not present.");
-            return;
-        }
-        if (m_localClient != null && m_localClient.Connected)
-        {
-            Debug.Log("Getting Encrypted Msg...");
-            string new_msg = string.Format("encrypt_msg\nmsg:{0}\npublic_key:{1}", _msg, m_publicKey);
-            Debug.Log(new_msg);
-            SendMessageToServer(new_msg);
-        }
-    }
-
-    public void DecryptMsg()
-    {
-        if (m_encryptedMessage == null)
-        {
-            Debug.Log("No Encrypted Msg To Decrypt...");
+#endif
             return;
         }
 
-        if (m_localClient != null && m_localClient.Connected)
+        if (m_localClient == null || !m_localClient.Connected)
         {
-            Debug.Log("Getting Decrypted Msg...");
-
-            string new_msg = string.Format("decrypt_msg\nprivate_key:{0}\nenc_session_key:{1}\ntag:{2}\nciphertext:{3}\nnonce:{4}", m_privateKey, m_encryptedMessage.encSessionKey, m_encryptedMessage.tag, m_encryptedMessage.ciphertext, m_encryptedMessage.nonce);
-            Debug.Log(new_msg);
-            SendMessageToServer(new_msg);
-        }
-    }
-
-    private void ParseKeys(List<string> _sentences)
-    {
-        Debug.Log("Parsing Public & Private Key...");
-
-        for (int i = 0; i < _sentences.Count; i++)
-        {
-            List<string> words = ParseSentence(_sentences[i]);
-
-            if (words[0].Equals("public_key"))
-            {
-                m_publicKey = words[1];
-            }
-            else if (words[0].Equals("private_key"))
-            {
-                m_privateKey = words[1];
-            }
-
+#if UNITY_EDITOR
+            Debug.Log("Local Client is connected to the local server.");
+#endif
+            return;
         }
 
-        Debug.Log("Parsing Public & Private Key Completed...");
-    }
-
-    private void ParseEncryptedMessage(List<string> _sentences)
-    {
-        Debug.Log("Parsing Encrypted Msg...");
-        string encSessionKey = "";
-        string tag = "";
-        string ciphertext = "";
-        string nonce = "";
-
-        for (int i = 0; i < _sentences.Count; i++)
+#if UNITY_EDITOR
+        Debug.Log("Encrypting Msg...");
+#endif
+        Dictionary<string, string> _msgDict = new Dictionary<string, string>
         {
-            List<string> words = ParseSentence(_sentences[i]);
-
-
-            if (words[0].Equals("enc_session_key"))
-            {
-                encSessionKey = words[1];
-            }
-            else if (words[0].Equals("tag"))
-            {
-                tag = words[1];
-            }
-            else if (words[0].Equals("ciphertext"))
-            {
-                ciphertext = words[1];
-            }
-            else if (words[0].Equals("nonce"))
-            {
-                nonce = words[1];
-            }
-        }
-
-        m_encryptedMessage = new EncryptedMessage
-        {
-            encSessionKey = encSessionKey,
-            tag = tag,
-            ciphertext = ciphertext,
-            nonce = nonce,
+            { Keys.INSTRUCTION, Instructions.ENCRYPT_MSG },
+            { Keys.PUBLIC_KEY, _publicKey },
+            { Keys.MESSAGE, _message }
         };
 
-        Debug.Log("Parsing Encrypted Msg Completed...");
-        DecryptMsg();
+        string _msg = JsonConvert.SerializeObject(_msgDict);
+#if UNITY_EDITOR
+        Debug.Log(_msg);
+#endif
+        SendMessageToServer(_msg);
     }
 
-    private void ParseDecryptedMessage(List<string> _sentences)
+    public void DecryptMsg(Dictionary<string, string> _encryptedMsg, string _privateKey)
     {
-        Debug.Log("Parsing Decrypted Msg...");
-        string msg = "";
-        for(int i = 1; i < _sentences.Count; i++) {
-            msg += _sentences[i];
-            msg += "\n";
-        }
-        m_decryptedMsg = msg;
-        m_isDecryptedMsgReceived = true;
-        Debug.Log("Parsing Encrypted Msg Completed...");
-    }
-
-    private List<string> ParseMessage(string _msg)
-    {
-        string sentence = "";
-        List<string> sentences = new List<string>();
-        for (int i = 0; i < _msg.Length; i++)
+        if (m_localClient == null || !m_localClient.Connected)
         {
-            if (_msg[i] == '\n')
-            {
-                sentence = RemoveLeadingTrailing(sentence);
-                if (sentence != "")
-                {
-                    sentences.Add(sentence);
-                }
-                sentence = "";
-            }
-            else
-            {
-                sentence += _msg[i];
-            }
+#if UNITY_EDITOR
+            Debug.Log("Local Client is connected to the local server.");
+#endif
+            return;
         }
 
-        sentence = RemoveLeadingTrailing(sentence);
-        if (sentence != "")
+#if UNITY_EDITOR
+        Debug.Log("Decrypting Msg...");
+#endif
+        Dictionary<string, string> _msgDict = new Dictionary<string, string> {
+            {Keys.INSTRUCTION, Instructions.DECRYPT_MSG },
+            {Keys.PRIVATE_KEY, _privateKey}
+        };
+
+        foreach (KeyValuePair<string, string> item in _encryptedMsg)
         {
-            sentences.Add(sentence);
+            _msgDict.Add(item.Key, item.Value);
         }
 
-        return sentences;
-    }
-
-    private List<string> ParseSentence(string _text)
-    {
-        Debug.Log(_text);
-        List<string> words = new List<string>();
-        string word = "";
-        for (int i = 0; i < _text.Length; i++)
-        {
-            if (_text[i] == ':')
-            {
-                word = RemoveLeadingTrailing(word);
-                if (word != "")
-                {
-                    words.Add(word);
-                }
-                word = "";
-            }
-            else
-            {
-                word += _text[i];
-            }
-        }
-
-        word = RemoveLeadingTrailing(word);
-        if (word != "")
-        {
-            words.Add(word);
-        }
-
-        return words;
-    }
-
-    private string RemoveLeadingTrailing(string _text, char _ch = ' ')
-    {
-        int start_idx = 0;
-        while (start_idx < _text.Length && _text[start_idx] == _ch)
-        {
-            start_idx++;
-        }
-
-        int end_idx = _text.Length - 1;
-        while (end_idx >= 0 && _text[end_idx] == _ch)
-        {
-            end_idx--;
-        }
-
-        return _text.Substring(start_idx, end_idx - start_idx + 1);
+        string _msg = JsonConvert.SerializeObject(_msgDict);
+#if UNITY_EDITOR
+        Debug.Log(_msg);
+#endif
+        SendMessageToServer(_msg);
     }
 }

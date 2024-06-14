@@ -14,15 +14,15 @@ public class AvatarUIView : MonoBehaviour
     [SerializeField]
     private Button m_sendMsgBtn;
 
-    private LocalClient m_avatar;
+    private DigitalAvatar m_avatar;
 
-    public LocalClient Avatar
+    public DigitalAvatar Avatar
     {
         get { return m_avatar; }
         set { 
             m_avatar = value;
             UpdateAvatarView(m_avatar);
-            m_avatar.onDecryptedMsgReceived += UpdateTextView;
+            m_avatar.onMessageReceived += UpdateTextView;
         }
     }
 
@@ -36,9 +36,9 @@ public class AvatarUIView : MonoBehaviour
         get { return m_messageInputField; }
     }
 
-    private void UpdateAvatarView(LocalClient _avatar)
+    private void UpdateAvatarView(DigitalAvatar _avatar)
     {
-        m_avatarNameText.text = _avatar.alias;
+        m_avatarNameText.text = _avatar.AvatarName;
     }
 
     private void UpdateTextView(string _msg)

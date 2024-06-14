@@ -9,23 +9,23 @@ namespace DigitalMetaverse
         [SerializeField]
         private string m_worldName = "MetaVerse Meetings";
 
-        private List<Avatar> m_avatars;
+        private List<DigitalAvatar> m_avatars;
 
-        public ReadOnlyCollection<Avatar> Avatars => new ReadOnlyCollection<Avatar>(m_avatars);
+        public ReadOnlyCollection<DigitalAvatar> Avatars => new ReadOnlyCollection<DigitalAvatar>(m_avatars);
 
         private void Awake()
         {
-            m_avatars = new List<Avatar>();
+            m_avatars = new List<DigitalAvatar>();
         }
 
-        public void AddAvatar(Avatar _avatar)
+        public void AddAvatar(DigitalAvatar _avatar)
         {
-            m_avatars ??= new List<Avatar>();
+            m_avatars ??= new List<DigitalAvatar>();
 
             m_avatars.Add(_avatar);
         }
 
-        public void RemoveAvatar(Avatar _avatar)
+        public void RemoveAvatar(DigitalAvatar _avatar)
         {
             if (m_avatars == null) return;
 

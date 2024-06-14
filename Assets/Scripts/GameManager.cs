@@ -36,61 +36,24 @@ public class GameManager : MonoBehaviour
         m_instance = this;
     }
 
-    private void Start()
+    public void CreateAvatar(string _avatarName)
     {
-        m_connectPanel.SetActive(true);
-        m_leftAvatarView.gameObject.SetActive(false);
-        m_rightAvatarView.gameObject.SetActive(false);
-
-        m_connectBtn.onClick.AddListener(() =>
-        {
-            if (m_playerNameInputField == null || m_playerNameInputField.text == "") return;
-
-            Metaverse.Instance.CreateAvatar(m_playerNameInputField.text);
-            m_playerNameInputField.text = "";
-        });
-
-        m_leftAvatarView.SendMsgBtn.onClick.AddListener(() =>
-        {
-            if (m_rightAvatarView.Avatar == null)
-            {
-                Debug.Log("No client is there.");
-                return;
-            }
-
-            string msg = "send_msg\n" + m_rightAvatarView.Avatar.alias + "\n" + m_leftAvatarView.MessageInputField.text;
-            m_leftAvatarView.Avatar.SendMessageToServer(msg);
-        });
-
-        m_rightAvatarView.SendMsgBtn.onClick.AddListener(() =>
-        {
-            if (m_leftAvatarView.Avatar == null)
-            {
-                Debug.Log("No client is there.");
-                return;
-            }
-
-            string msg = "send_msg\n" + m_leftAvatarView.Avatar.alias + "\n" + m_rightAvatarView.MessageInputField.text;
-            m_rightAvatarView.Avatar.SendMessageToServer(msg);
-        });
-
-        m_leftAvatarView.gameObject.SetActive(false);
-        m_rightAvatarView.gameObject.SetActive(false);
+#if UNITY_EDITOR
+        Debug.Log("Creating Avatar...");
+#endif
     }
 
-    public void SetClient(LocalClient _client) {
-        if (m_leftAvatarView.Avatar == null)
-        {
-            m_leftAvatarView.Avatar = _client;
-            m_leftAvatarView.gameObject.SetActive(true);
-        }
-        else if (m_rightAvatarView.Avatar == null)
-        {
-            _client.transform.position = new Vector3(5, 0, 0);
-            m_rightAvatarView.Avatar = _client;
-            m_connectPanel.SetActive(false);
-            
-            m_rightAvatarView.gameObject.SetActive(true);
-        }
+    public void CreateWorld(string _worldName)
+    {
+#if UNITY_EDITOR
+        Debug.Log("Creating World...");
+#endif
+    }
+
+    public void JoinWorld(string _worldId)
+    {
+#if UNITY_EDITOR
+        Debug.Log("Joining World...");
+#endif
     }
 }

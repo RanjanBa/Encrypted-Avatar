@@ -7,7 +7,7 @@ class Instructions(Enum):
     CREATE_WORLD = "create_world"
     JOIN_WORLD = "join_world"
     SEND_MSG = "send_msg"
-    GET_KEY = "get_key"
+    SENT_KEY = "sent_key"
     WORLD_INFO = "world_info"
     ALL_WORLDS = "all_worlds"
     ENCRYPT_MSG = "encrypt_msg"

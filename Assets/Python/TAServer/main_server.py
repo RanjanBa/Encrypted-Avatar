@@ -183,24 +183,24 @@ def parseMessage(msg : str, client : Client):
         print("No instruction is given with the msg...")
         return
 
-    instruction = parsedMsg[Keys.INSTRUCTION.value]
+    msg_code = parsedMsg[Keys.INSTRUCTION.value]
 
-    if instruction == Instructions.CREATE_AVATAR.value:
+    if msg_code == Instructions.CREATE_AVATAR.value:
         createAvatar(client, parsedMsg)
-    elif instruction == Instructions.AVATAR_INFO.value:
+    elif msg_code == Instructions.AVATAR_INFO.value:
         clientAvatarInfo(client, parsedMsg)
-    elif instruction == Instructions.CREATE_WORLD.value:
+    elif msg_code == Instructions.CREATE_WORLD.value:
         createNewWorld(client, parsedMsg)
-    elif instruction == Instructions.JOIN_WORLD.value:
+    elif msg_code == Instructions.JOIN_WORLD.value:
         joinWorld(client, parsedMsg)
-    elif instruction == Instructions.ALL_WORLDS.value:
+    elif msg_code == Instructions.ALL_WORLDS.value:
         allWorlds(client, parsedMsg)
-    elif instruction == Instructions.WORLD_INFO.value:
+    elif msg_code == Instructions.WORLD_INFO.value:
         worldInfo(client, parsedMsg)
-    elif instruction == Instructions.SEND_MSG.value:
+    elif msg_code == Instructions.SEND_MSG.value:
         sendMessage(client, parsedMsg)
     else:
-        print("Message is sent without any instruction...")
+        print(f"Message is sent without proper instruction -> {msg_code}")
 
 
 def handleClient(client_socket : socket):

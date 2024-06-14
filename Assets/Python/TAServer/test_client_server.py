@@ -24,7 +24,7 @@ print(encoded_msg.decode())
 is_running = True
 
 info = {}
-info[Keys.INSTRUCTION.value] = Instructions.GET_KEY.value
+info[Keys.INSTRUCTION.value] = Instructions.SENT_KEY.value
 info[Keys.PUBLIC_KEY.value] = "waidiwhauihduiwhad"
 
 client.send(json.dumps(info).encode())
