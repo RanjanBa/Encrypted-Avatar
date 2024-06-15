@@ -53,9 +53,9 @@ def handleClients(client : Client):
         except KeyboardInterrupt:
             print("Keyboard Interruption...")
             break
-        # except Exception as e:
-        #     print(f"Some error occurs... {e}")
-        #     break
+        except Exception as e:
+            print(f"Some error occurs... {e}")
+            break
         
     if(client in clients):
         clients.remove(client)

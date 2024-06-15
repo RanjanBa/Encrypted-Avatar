@@ -4,7 +4,6 @@ using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
 using System.Threading;
-using UnityEngine.Events;
 using Newtonsoft.Json;
 
 public class LocalClient : MonoBehaviour
@@ -147,6 +146,10 @@ public class LocalClient : MonoBehaviour
             else
             {
                 Debug.Log("No instruction is given with the msg...");
+                if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
+                {
+                    Debug.Log(_msg);
+                }
             }
 #endif
         }

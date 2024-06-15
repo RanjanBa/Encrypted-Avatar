@@ -1,9 +1,10 @@
 from avatar import Avatar
 
 class World:
-    def __init__(self, _id : str, _name : str) -> None:
+    def __init__(self, _id : str, _name : str, _view_id : str) -> None:
         self.__world_id : str = _id
         self.__world_name : str = _name
+        self.__view_id : str = _view_id
         self.__avatarsDict : dict[str, Avatar] = {}
 
     @property
@@ -13,6 +14,10 @@ class World:
     @property
     def worldName(self):
         return self.__world_name
+    
+    @property
+    def ViewId(self):
+        return self.__view_id
     
     @property
     def avatars(self) -> list[Avatar]:

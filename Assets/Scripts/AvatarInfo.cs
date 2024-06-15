@@ -4,7 +4,8 @@ using UnityEngine;
 [Serializable]
 public class AvatarInfo
 {
-    public string avatarId;
+    public string viewId;
     public string avatarName;
     public Sprite avatarIcon;
+    public string avatarId;
 }

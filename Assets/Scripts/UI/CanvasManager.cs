@@ -13,8 +13,6 @@ public class CanvasManager : MonoBehaviour
     private GameObject m_authenticationPanel;
     [SerializeField]
     private GameObject m_mainMenuPanel;
-    [SerializeField]
-    private GameObject m_worldDecisionPanel;
 
     private GameObject m_currentActivePanel;
     private Stack<GameObject> m_lastActivePanels;
@@ -40,23 +38,22 @@ public class CanvasManager : MonoBehaviour
     {
         m_authenticationPanel.SetActive(true);
         m_mainMenuPanel.SetActive(false);
-        m_worldDecisionPanel.SetActive(false);
         m_lastActivePanels = new Stack<GameObject>();
         m_currentActivePanel = m_authenticationPanel;
 
-        GameManager.Instance.onLoggedInCompleted += () =>
+        GameManager.Instance.onLogInCompleted += () =>
         {
             ActivatePanel(m_mainMenuPanel);
         };
 
         GameManager.Instance.onAvatarCreationCompleted += () =>
         {
-            ActivatePanel(m_worldDecisionPanel);
+            ActivatePanel(m_mainMenuPanel);
         };
 
         GameManager.Instance.onWorldCreationCompleted += () =>
         {
-            ActivatePanel(null);
+            ActivatePanel(m_mainMenuPanel);
         };
     }
 

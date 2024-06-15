@@ -3,7 +3,7 @@ from enum import Enum
 
 class Instructions(Enum):
     CREATE_AVATAR = "create_avatar"
-    AVATAR_INFO = "avatar_info"
+    ALL_AVATARS = "all_avatars"
     CREATE_WORLD = "create_world"
     JOIN_WORLD = "join_world"
     SEND_MSG = "send_msg"
@@ -22,6 +22,7 @@ class Keys(Enum):
     WORLD_NAME = "world_name"
     AVATAR_ID = "avatar_id"
     AVATAR_NAME = "avatar_name"
+    VIEW_ID = "view_id"
     PUBLIC_KEY = "public_key"
     PRIVATE_KEY = "private_key"
     ENC_SESSION_KEY = "enc_session_key"

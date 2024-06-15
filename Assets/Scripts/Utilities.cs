@@ -4,7 +4,7 @@ using UnityEngine;
 public static class Instructions
 {
     public const string CREATE_AVATAR = "create_avatar";
-    public const string AVATAR_INFO = "avatar_info";
+    public const string ALL_AVATARS = "all_avatars";
     public const string CREATE_WORLD = "create_world";
     public const string JOIN_WORLD = "join_world";
     public const string SEND_MSG = "send_msg";
@@ -25,6 +25,7 @@ public static class Keys
     public const string WORLD_NAME = "world_name";
     public const string AVATAR_ID = "avatar_id";
     public const string AVATAR_NAME = "avatar_name";
+    public const string VIEW_ID = "view_id";
     public const string PUBLIC_KEY = "public_key";
     public const string PRIVATE_KEY = "private_key";
     public const string ENC_SESSION_KEY = "enc_session_key";
@@ -34,7 +35,15 @@ public static class Keys
     public const string STATUS = "status";
 }
 
-public static class Status {
+public static class Status
+{
     public const string COMPLETE = "complete";
     public const string ERROR = "error";
+}
+
+public enum ProcessStatus
+{
+    None,
+    Running,
+    Completed
 }

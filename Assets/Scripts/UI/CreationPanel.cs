@@ -23,6 +23,7 @@ public class CreationPanel : MonoBehaviour
     private CardView m_selectedCardView;
     [SerializeField]
     private CreationType m_creationType;
+    private string m_viewId;
 
     private void Start()
     {
@@ -39,11 +40,11 @@ public class CreationPanel : MonoBehaviour
 
             if (m_creationType == CreationType.Avatar)
             {
-                GameManager.Instance.CreateAvatar(m_inputField.text);
+                GameManager.Instance.CreateAvatar(m_inputField.text, m_viewId);
             }
             else
             {
-                GameManager.Instance.CreateWorld(m_inputField.text);
+                GameManager.Instance.CreateWorld(m_inputField.text, m_viewId);
             }
         });
     }
@@ -62,7 +63,7 @@ public class CreationPanel : MonoBehaviour
 
             foreach (var _info in _avatarInfos)
             {
-                InstantiateBtn(_info.avatarIcon, _info.avatarName);
+                InstantiateBtn(_info.avatarIcon, _info.avatarName, _info.viewId);
             }
         }
         else
@@ -71,12 +72,12 @@ public class CreationPanel : MonoBehaviour
 
             foreach (var _info in _worldInfos)
             {
-                InstantiateBtn(_info.worldIcon, _info.worldName);
+                InstantiateBtn(_info.worldIcon, _info.worldName, _info.viewId);
             }
         }
     }
 
-    private void InstantiateBtn(Sprite _icon, string _name)
+    private void InstantiateBtn(Sprite _icon, string _name, string _viewId)
     {
         Button _btn = Instantiate(m_contentPrefab, m_contentContainer);
         CardView _cardView = _btn.GetComponent<CardView>();
@@ -91,6 +92,7 @@ public class CreationPanel : MonoBehaviour
             m_selectedCardView.gameObject.SetActive(true);
             m_selectedCardView.UpdateIcon(_icon);
             m_selectedCardView.UpdateName(_name);
+            m_viewId = _viewId;
         });
     }
 }

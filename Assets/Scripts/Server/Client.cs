@@ -22,6 +22,9 @@ public class Client : MonoBehaviour
     private string m_gameObjectName;
 
     public Action onConnectedWithServer;
+    public Action<AvatarInfo> onAvatarCreated;
+    public Action<WorldInfo> onWorldCreated;
+    public Action<List<WorldInfo>> onAllWorldsRetrieved;
 
     private void Start()
     {
@@ -110,6 +113,68 @@ public class Client : MonoBehaviour
         try
         {
             Dictionary<string, string> _parsedMsg = JsonConvert.DeserializeObject<Dictionary<string, string>>(_message);
+            if (_parsedMsg.TryGetValue(Keys.INSTRUCTION, out string _msgCode))
+            {
+                if (_msgCode == Instructions.CREATE_AVATAR)
+                {
+                    AvatarInfo _avatarInfo = new AvatarInfo()
+                    {
+                        avatarId = _parsedMsg[Keys.AVATAR_ID],
+                        avatarName = _parsedMsg[Keys.AVATAR_NAME]
+                    };
+                    onAvatarCreated?.Invoke(_avatarInfo);
+                }
+                else if (_msgCode == Instructions.CREATE_WORLD)
+                {
+                    WorldInfo _worldInfo = new WorldInfo()
+                    {
+                        worldId = _parsedMsg[Keys.WORLD_ID],
+                        worldName = _parsedMsg[Keys.WORLD_NAME]
+                    };
+                    onWorldCreated?.Invoke(_worldInfo);
+                }
+                else if (_msgCode == Instructions.ALL_WORLDS)
+                {
+                    List<WorldInfo> _worlds = new List<WorldInfo>();
+                    int idx = 0;
+                    while (true)
+                    {
+                        if (_parsedMsg.TryGetValue(idx.ToString(), out string _sentence))
+                        {
+                            string[] strs = _sentence.Split(',');
+                            WorldInfo _info = new WorldInfo()
+                            {
+                                worldId = strs[0],
+                                worldName = strs[1],
+                                viewId = strs[2]
+                            };
+                            _worlds.Add(_info);
+                            idx++;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                    onAllWorldsRetrieved?.Invoke(_worlds);
+                }
+#if UNITY_EDITOR
+                else
+                {
+                    Debug.Log("Message is sent without proper instruction -> " + _msgCode);
+                }
+#endif
+            }
+#if UNITY_EDITOR
+            else
+            {
+                Debug.Log("No instruction is given with the msg...");
+                if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
+                {
+                    Debug.Log(_msg);
+                }
+            }
+#endif
         }
         catch (JsonReaderException e)
         {
