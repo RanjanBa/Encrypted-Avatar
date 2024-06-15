@@ -32,9 +32,10 @@ def broadcast(msg : str):
 
 
 def handleClients(client : Client):
-    client.sendMessage(f"You are connected to the server {server.getsockname()} successfully")
     info = {}
-    info[Keys.MESSAGE.value] = f"New client is connected to the server!\n"
+    info[Keys.MESSAGE.value] = f"You are connected to the server {server.getsockname()} successfully.";
+    client.sendMessage(json.dumps(info))
+    info[Keys.MESSAGE.value] = f"New client is connected to the server."
     broadcast(json.dumps(info))
     
     clients.append(client)

@@ -19,10 +19,13 @@ public class Client : MonoBehaviour
     private NetworkStream m_stream;
     private Thread m_receiverThread;
 
+    private string m_gameObjectName;
+
     public Action onConnectedWithServer;
 
     private void Start()
     {
+        m_gameObjectName = gameObject.name;
         ConnectToServer();
     }
 
@@ -39,14 +42,22 @@ public class Client : MonoBehaviour
         {
             m_client = new TcpClient(m_ipAddress, m_port);
             m_stream = m_client.GetStream();
+#if UNITY_EDITOR
             Debug.Log("Connected to the main server...");
+#endif
             onConnectedWithServer?.Invoke();
 
-            m_receiverThread = new Thread(new ThreadStart(ListeningServerForMsg));
+            m_receiverThread = new Thread(new ThreadStart(ListeningServerForMsg))
+            {
+                IsBackground = true
+            };
+            m_receiverThread.Start();
         }
         catch (SocketException e)
         {
+#if UNITY_EDITOR
             Debug.LogError("SocketException : " + e.ToString());
+#endif
         }
     }
 
@@ -68,11 +79,11 @@ public class Client : MonoBehaviour
 #if UNITY_EDITOR
                     if (_serverMsg.Length != 0)
                     {
-                        Debug.Log(gameObject.name.ToUpper() + " received msg from server : " + _serverMsg);
+                        Debug.Log(m_gameObjectName + " received msg from server : " + _serverMsg);
                     }
                     else
                     {
-                        Debug.Log(gameObject.name.ToUpper() + " received no msg from server.");
+                        Debug.Log(m_gameObjectName + " received no msg from server.");
                         continue;
                     }
 #endif
@@ -80,9 +91,12 @@ public class Client : MonoBehaviour
                 }
             }
         }
+
         catch (SocketException e)
         {
+#if UNITY_EDITOR
             Debug.LogError("SocketException : " + e.ToString());
+#endif
         }
     }
 
@@ -93,8 +107,34 @@ public class Client : MonoBehaviour
             return;
         }
 
-        Dictionary<string, string> _parsedMsg = JsonConvert.DeserializeObject<Dictionary<string, string>>(_message);
+        try
+        {
+            Dictionary<string, string> _parsedMsg = JsonConvert.DeserializeObject<Dictionary<string, string>>(_message);
+        }
+        catch (JsonReaderException e)
+        {
+#if UNITY_EDITOR
+            Debug.LogWarning("Json deserializatio error : " + e.ToString());
+#endif
+        }
 
-        
+
+    }
+
+    public void SendMessageToServer(string _message)
+    {
+        if (m_client == null || !m_client.Connected)
+        {
+#if UNITY_EDITOR
+            Debug.LogError("Client not connected to server.");
+#endif
+            return;
+        }
+
+        byte[] data = Encoding.UTF8.GetBytes(_message);
+        m_stream.Write(data, 0, data.Length);
+#if UNITY_EDITOR
+        Debug.Log(m_gameObjectName + " sent message to server : " + _message);
+#endif
     }
 }

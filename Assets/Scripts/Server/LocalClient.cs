@@ -25,14 +25,19 @@ public class LocalClient : MonoBehaviour
     public Action<string> onDecryptedMsgReceived;
     public Action onConnectedWithServer;
 
+    private string m_gameObjectName;
+
     private void Start()
     {
         ConnectToServer();
 
+#if UNITY_EDITOR
         onDecryptedMsgReceived += (_msg) =>
         {
             Debug.Log(_msg);
         };
+#endif
+        m_gameObjectName = gameObject.name;
     }
 
     private void OnApplicationQuit()
@@ -47,7 +52,9 @@ public class LocalClient : MonoBehaviour
         {
             m_localClient = new TcpClient(m_ipAddress, m_port);
             m_stream = m_localClient.GetStream();
+#if UNITY_EDITOR
             Debug.Log("Connected to local server...");
+#endif
             onConnectedWithServer?.Invoke();
 
             m_receiveThread = new Thread(new ThreadStart(ListeningServerForMsg))
@@ -58,7 +65,9 @@ public class LocalClient : MonoBehaviour
         }
         catch (SocketException e)
         {
+#if UNITY_EDITOR
             Debug.LogError("SocketException: " + e.ToString());
+#endif
         }
     }
 
@@ -83,11 +92,11 @@ public class LocalClient : MonoBehaviour
 #if UNITY_EDITOR
                         if (_serverMsg.Length != 0)
                         {
-                            Debug.Log(gameObject.name.ToUpper() + " received msg from server : " + _serverMsg);
+                            Debug.Log(m_gameObjectName + " received msg from server : " + _serverMsg);
                         }
                         else
                         {
-                            Debug.Log(gameObject.name.ToUpper() + " received no msg from server.");
+                            Debug.Log(m_gameObjectName + " received no msg from server.");
                             continue;
                         }
 #endif
@@ -98,7 +107,9 @@ public class LocalClient : MonoBehaviour
         }
         catch (SocketException socketException)
         {
+#if UNITY_EDITOR
             Debug.Log("Socket exception: " + socketException.ToString());
+#endif
         }
     }
 
@@ -108,36 +119,43 @@ public class LocalClient : MonoBehaviour
         {
             return;
         }
-
-        Dictionary<string, string> _parsedMsg = JsonConvert.DeserializeObject<Dictionary<string, string>>(_message);
-
-        if (_parsedMsg.TryGetValue(Keys.INSTRUCTION, out string _msgCode))
+        try
         {
-            if (_msgCode == Instructions.GENERATE_KEY)
+            Dictionary<string, string> _parsedMsg = JsonConvert.DeserializeObject<Dictionary<string, string>>(_message);
+            if (_parsedMsg.TryGetValue(Keys.INSTRUCTION, out string _msgCode))
             {
-                ParseKeys(_parsedMsg);
-            }
-            else if (_msgCode == Instructions.ENCRYPT_MSG)
-            {
-                ParseEncryptedMessage(_parsedMsg);
-            }
-            else if (_msgCode == Instructions.DECRYPT_MSG)
-            {
-                ParseDecryptedMessage(_parsedMsg);
+                if (_msgCode == Instructions.GENERATE_KEY)
+                {
+                    ParseKeys(_parsedMsg);
+                }
+                else if (_msgCode == Instructions.ENCRYPT_MSG)
+                {
+                    ParseEncryptedMessage(_parsedMsg);
+                }
+                else if (_msgCode == Instructions.DECRYPT_MSG)
+                {
+                    ParseDecryptedMessage(_parsedMsg);
+                }
+#if UNITY_EDITOR
+                else
+                {
+                    Debug.Log("Message is sent without proper instruction -> " + _msgCode);
+                }
+#endif
             }
 #if UNITY_EDITOR
             else
             {
-                Debug.Log("Message is sent without proper instruction -> " + _msgCode);
+                Debug.Log("No instruction is given with the msg...");
             }
 #endif
         }
-#if UNITY_EDITOR
-        else
+        catch (JsonReaderException e)
         {
-            Debug.Log("No instruction is given with the msg...");
-        }
+#if UNITY_EDITOR
+            Debug.LogWarning("Json deserializatio error : " + e.ToString());
 #endif
+        }
     }
 
     private void ParseKeys(Dictionary<string, string> _parsedMsg)
@@ -225,14 +243,16 @@ public class LocalClient : MonoBehaviour
     {
         if (m_localClient == null || !m_localClient.Connected)
         {
+#if UNITY_EDITOR
             Debug.LogError("Client not connected to server.");
+#endif
             return;
         }
 
         byte[] data = Encoding.UTF8.GetBytes(_message);
         m_stream.Write(data, 0, data.Length);
 #if UNITY_EDITOR
-        Debug.Log(gameObject.name.ToUpper() + " sent message to server : " + _message);
+        Debug.Log(m_gameObjectName + " sent message to server : " + _message);
 #endif
     }
 

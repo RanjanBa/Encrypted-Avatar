@@ -24,8 +24,12 @@ class Keys(Enum):
     AVATAR_NAME = "avatar_name"
     PUBLIC_KEY = "public_key"
     PRIVATE_KEY = "private_key"
-    STATUS = "status"
     ENC_SESSION_KEY = "enc_session_key"
     TAG = "tag"
     CIPHER_TEXT = "cipher_text"
     NONCE = "nonce"
+    STATUS = "status"
+    
+class Status(Enum):
+    COMPLETE = "complete"
+    ERROR = "error"

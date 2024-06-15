@@ -27,9 +27,14 @@ public static class Keys
     public const string AVATAR_NAME = "avatar_name";
     public const string PUBLIC_KEY = "public_key";
     public const string PRIVATE_KEY = "private_key";
-    public const string STATUS = "status";
     public const string ENC_SESSION_KEY = "enc_session_key";
     public const string TAG = "tag";
     public const string CIPHER_TEXT = "cipher_text";
     public const string NONCE = "nonce";
+    public const string STATUS = "status";
+}
+
+public static class Status {
+    public const string COMPLETE = "complete";
+    public const string ERROR = "error";
 }

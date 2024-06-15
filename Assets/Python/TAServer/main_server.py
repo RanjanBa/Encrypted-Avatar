@@ -8,7 +8,7 @@ from threading import Thread
 from client import Client
 from world import World
 from avatar import Avatar
-from utilities import Instructions, Keys
+from utilities import Instructions, Keys, Status
 from kyber import Kyber1024
 import json
 import uuid
@@ -37,7 +37,14 @@ def getClient(address, port) -> Client:
 
 
 def createAvatar(client : Client, parsedMsg : dict):
+    print("Creating New Avatar")
     if not Keys.AVATAR_NAME.value in parsedMsg:
+        info = {}
+        info[Keys.INSTRUCTION.value] = Instructions.CREATE_AVATAR.value
+        info[Keys.STATUS.value] = Status.ERROR.value
+        info[Keys.MESSAGE.value] = "You did not provide any avatar name in the msg."
+        msg = json.dumps(info)
+        client.sendMessage(msg)
         print("No avatar name key is present in the msg.")
         return
 
@@ -46,16 +53,31 @@ def createAvatar(client : Client, parsedMsg : dict):
     
     avatar = Avatar(avatar_id, avatar_name)
     
+    info : dict[str, str] = {}
     if client.addAvatar(avatar):
+        info[Keys.INSTRUCTION.value] = Instructions.CREATE_AVATAR.value
+        info[Keys.AVATAR_ID.value] = avatar_id
+        info[Keys.AVATAR_NAME.value] = avatar_name
         print(f"New avatar is created with id : {avatar_id} , name : {avatar_name}")
-        client.sendMessage(f"New avatar is created with id : {avatar_id} , name : {avatar_name}")
     else:
+        info[Keys.INSTRUCTION.value] = Instructions.CREATE_AVATAR.value
+        info[Keys.STATUS.value] = Status.ERROR.value
+        info[Keys.MESSAGE.value] = f"Avatar can't be created with id {avatar_id}. Client already have that avatar id"
         print(f"Avatar can't be created with id {avatar_id}. Client already have that avatar")
-        client.sendMessage(f"Avatar can't be created with id {avatar_id}. Client already have that avatar")
+    
+    msg = json.dumps(info)
+    client.sendMessage(msg)
 
 
 def createNewWorld(client : Client, parsedMsg : dict):
+    print("Creating New World")
     if not Keys.WORLD_NAME.value in parsedMsg:
+        info = {}
+        info[Keys.INSTRUCTION.value] = Instructions.CREATE_WORLD.value
+        info[Keys.STATUS.value] = Status.ERROR.value
+        info[Keys.MESSAGE.value] = "You did not provide any world name in the msg."
+        msg = json.dumps(info)
+        client.sendMessage(msg)
         print("No world name key is present in the msg.")
         return
 
@@ -63,12 +85,23 @@ def createNewWorld(client : Client, parsedMsg : dict):
     
     world_id = str(uuid.uuid4())
     if worldsDict.__contains__(world_id):
+        info = {}
+        info[Keys.INSTRUCTION.value] = Instructions.CREATE_WORLD.value
+        info[Keys.STATUS.value] = Status.ERROR.value
+        info[Keys.MESSAGE.value] = f"Can't create new world. World is already exist with world id {world_id}."
+        msg = json.dumps(info)
+        client.sendMessage(msg)
         print(f"Can't create new world. World is already exist with world id {world_id}.")
-        client.sendMessage(f"Can't create new world. World is already exist with world id {world_id}.")
+        return
     
     world = World(world_id, world_name)
     worldsDict[world_id] = world
-    client.sendMessage(f"World is created with world id {world_id}.")
+    info : dict[str, str] = {}
+    info[Keys.INSTRUCTION.value] = Instructions.CREATE_WORLD.value
+    info[Keys.WORLD_ID.value] = world_id
+    info[Keys.WORLD_NAME.value] = world_name
+    msg = json.dumps(info)
+    client.sendMessage(msg)
 
 
 def joinWorld(client : Client, parsedMsg : dict):
@@ -182,7 +215,7 @@ def parseMessage(msg : str, client : Client):
     if not Keys.INSTRUCTION.value in parsedMsg:
         print("No instruction is given with the msg...")
         return
-
+    print("Parsing Message Complete")
     msg_code = parsedMsg[Keys.INSTRUCTION.value]
 
     if msg_code == Instructions.CREATE_AVATAR.value:

@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 7287349696710551793}
   - component: {fileID: 7287349696710551792}
   - component: {fileID: 8980979401503001461}
+  - component: {fileID: 4383311127588297225}
   m_Layer: 5
   m_Name: AvatarUI
   m_TagString: Untagged
@@ -37,7 +38,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 150, y: 150}
+  m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7287349696710551793
 CanvasRenderer:
@@ -101,7 +102,7 @@ MonoBehaviour:
     m_NormalColor: {r: 0.65900666, g: 0.7728237, b: 0.34097812, a: 1}
     m_HighlightedColor: {r: 0.5069161, g: 0.6037736, b: 0.23638305, a: 1}
     m_PressedColor: {r: 0.5283019, g: 0.44644725, b: 0.11712353, a: 1}
-    m_SelectedColor: {r: 0.5295491, g: 0.44698253, b: 0.117235065, a: 1}
+    m_SelectedColor: {r: 0.65900666, g: 0.7728237, b: 0.34097812, a: 1}
     m_DisabledColor: {r: 0.65900666, g: 0.7728237, b: 0.34097812, a: 0.3529412}
     m_ColorMultiplier: 1
     m_FadeDuration: 0.1
@@ -121,6 +122,20 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &4383311127588297225
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7287349696710551794}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d708f42316b6d6f8924b61e355cf430, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_cardIcon: {fileID: 7287349696710551792}
+  m_cardText: {fileID: 7287349696757430452}
 --- !u!1 &7287349696757430454
 GameObject:
   m_ObjectHideFlags: 0
@@ -213,8 +228,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 24
-  m_fontSizeBase: 24
+  m_fontSize: 18
+  m_fontSizeBase: 18
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
