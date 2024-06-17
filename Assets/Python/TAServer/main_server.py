@@ -108,6 +108,7 @@ def createNewWorld(client : Client, parsedMsg : dict):
 
 
 def allWorlds(client : Client, parsedMsg : dict):
+    print("Get All Worlds")
     info : dict[str, str] = {}
     info[Keys.INSTRUCTION.value] = Instructions.ALL_WORLDS.value
     print(type(worldsDict))
@@ -121,8 +122,9 @@ def allWorlds(client : Client, parsedMsg : dict):
 
 
 def clientAllAvatars(client : Client, parsedMsg : dict):
+    print("Getting All Avatar of the client")
     info : dict[str, str] = {}
-    info[Keys.INSTRUCTION.value] = Instructions.ALL_AVATARS.value
+    info[Keys.INSTRUCTION.value] = Instructions.CLIENT_ALL_AVATARS.value
     for idx, avatar in enumerate(client.avatars):
         info[str(idx)] = avatar.avatarID + "," + avatar.avatarName + "," + avatar.viewId
     
@@ -131,30 +133,79 @@ def clientAllAvatars(client : Client, parsedMsg : dict):
 
 
 def joinWorld(client : Client, parsedMsg : dict):
+    print("Joining World")
+    info = {}
+    info[Keys.INSTRUCTION.value] = Instructions.JOIN_WORLD.value
     if not Keys.WORLD_ID.value in parsedMsg:
+        info[Keys.STATUS.value] = Status.ERROR.value
+        info[Keys.MESSAGE.value] = "No world id key is present in the msg."
+        msg = json.dumps(info)
+        client.sendMessage(msg)
         print("No world id key is present in the msg.")
         return
 
     if not Keys.AVATAR_ID.value in parsedMsg:
+        info[Keys.STATUS.value] = Status.ERROR.value
+        info[Keys.MESSAGE.value] = "No avatar id key is present in the msg."
+        msg = json.dumps(info)
+        client.sendMessage(msg)
         print("No avatar id key is present in the msg.")
         return
 
     world_id = parsedMsg[Keys.WORLD_ID.value]
     if not worldsDict.__contains__(world_id):
-        print(f"Can't join the world with id {world_id}. World with that id doesn't exists.")
-        client.sendMessage(f"Can't join the world with id {world_id}. World with that id doesn't exists.")
+        info[Keys.STATUS.value] = Status.ERROR.value
+        info[Keys.MESSAGE.value] = f"Can't join the world with id {world_id}. World with that id doesn't exists."
+        msg = json.dumps(info)
+        client.sendMessage(msg)
         return
     
     avatar_id = parsedMsg[Keys.AVATAR_ID.value]
-    
     avatar = client.getAvatar(avatar_id)
     if avatar in worldsDict[world_id]:
+        info[Keys.STATUS.value] = Status.ERROR.value
+        info[Keys.MESSAGE.value] = f"{avatar.avatarName} has already joinned the world with id {world_id}."
+        msg = json.dumps(info)
+        client.sendMessage(msg)
         print(f"{avatar.avatarName} has already joinned the world with id {world_id}.")
-        client.sendMessage(f"You have already joinned the world with id {world_id}.")
         return
     
     worldsDict[world_id].addAvatar(avatar)
-    client.sendMessage(f"You join to the world with id {world_id}")
+    info[Keys.STATUS.value] = Status.COMPLETE.value
+    info[Keys.MESSAGE.value] = f"{avatar.avatarName} join to the world with id {world_id}"
+    msg = json.dumps(info)
+    client.sendMessage(msg)
+
+
+def worldAllAvatars(client : Client, parsedMsg : dict):
+    print("Getting All Avatars of the World")
+    info = {}
+    info[Keys.INSTRUCTION.value] = Instructions.WORLD_ALL_AVATARS.value
+
+    if not Keys.WORLD_ID.value in parsedMsg:
+        info[Keys.STATUS.value] = Status.ERROR.value
+        info[Keys.MESSAGE.value] = "No world id key is present in the msg."
+        msg = json.dumps(info)
+        client.sendMessage(msg)
+        print("No world id key is present in the msg.")
+        return
+    
+    world_id = parsedMsg[Keys.WORLD_ID.value]
+    if not worldsDict.__contains__(world_id):
+        print(f"Can't get info of the world with id {world_id}. World with that id doesn't exists.")
+        info[Keys.STATUS.value] = Status.ERROR.value
+        info[Keys.MESSAGE.value] = f"Can't get avatars of the world with id {world_id}. World with that id doesn't exists."
+        msg = json.dumps(info)
+        client.sendMessage(msg)
+        return
+
+    world_avatars = worldsDict[world_id].avatars
+    for idx in range(len(world_avatars)):
+        avatar = world_avatars[idx]
+        info[str(idx)] = avatar.avatarID + "," + avatar.avatarName + "," + avatar.viewId
+    
+    msg = json.dumps(info)
+    client.sendMessage(msg)
 
 
 def sendMessage(client : Client, parsedMsg : dict):
@@ -189,30 +240,6 @@ def sendMessage(client : Client, parsedMsg : dict):
         client.sendMessage("Can't find receiver client")
 
 
-def worldInfo(client : Client, parsedMsg : dict):
-    if not Keys.WORLD_ID.value in parsedMsg:
-        print("No world id key is present in the msg.")
-        return
-    
-    world_id = parsedMsg[Keys.WORLD_ID.value]
-
-    if not worldsDict.__contains__(world_id):
-        print(f"Can't get info of the world with id {world_id}. World with that id doesn't exists.")
-        client.sendMessage(f"Can't get info of the world with id {world_id}. World with that id doesn't exists.")
-        return
-
-    world_avatars = worldsDict[world_id].avatars
-    msg = "world_infos\n"
-    msg += "total avatars : " + str(len(world_avatars)) + "\n"
-    for idx in range(len(world_avatars)):
-        msg += str(world_avatars[idx].avatarName)
-        if idx < len(world_avatars) - 1:
-            msg += "\n"
-    
-    print(msg)
-    client.sendMessage(msg)
-
-
 def parseMessage(msg : str, client : Client):
     parsedMsg : dict = json.loads(msg)
     
@@ -224,7 +251,7 @@ def parseMessage(msg : str, client : Client):
 
     if msg_code == Instructions.CREATE_AVATAR.value:
         createAvatar(client, parsedMsg)
-    elif msg_code == Instructions.ALL_AVATARS.value:
+    elif msg_code == Instructions.CLIENT_ALL_AVATARS.value:
         clientAllAvatars(client, parsedMsg)
     elif msg_code == Instructions.CREATE_WORLD.value:
         createNewWorld(client, parsedMsg)
@@ -232,8 +259,8 @@ def parseMessage(msg : str, client : Client):
         joinWorld(client, parsedMsg)
     elif msg_code == Instructions.ALL_WORLDS.value:
         allWorlds(client, parsedMsg)
-    elif msg_code == Instructions.WORLD_INFO.value:
-        worldInfo(client, parsedMsg)
+    elif msg_code == Instructions.WORLD_ALL_AVATARS.value:
+        worldAllAvatars(client, parsedMsg)
     elif msg_code == Instructions.SEND_MSG.value:
         sendMessage(client, parsedMsg)
     else:

@@ -6,8 +6,7 @@ namespace DigitalMetaverse
 {
     public class World : MonoBehaviour
     {
-        [SerializeField]
-        private string m_worldName = "MetaVerse Meetings";
+        private WorldInfo m_worldInfo;
 
         private List<DigitalAvatar> m_avatars;
 
@@ -30,6 +29,11 @@ namespace DigitalMetaverse
             if (m_avatars == null) return;
 
             m_avatars.Remove(_avatar);
+        }
+
+        public void UpdateWorldInfo(WorldInfo _worldInfo)
+        {
+            m_worldInfo = _worldInfo;
         }
     }
 }

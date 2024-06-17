@@ -29,7 +29,6 @@ public class MainMenuPanel : MonoBehaviour
         m_joinWorldBtn.onClick.AddListener(() =>
         {
             CanvasManager.Instance.ActivatePanel(m_avatarSelectionPanel);
-            GameManager.Instance.GetAllWorlds();
         });
     }
 }

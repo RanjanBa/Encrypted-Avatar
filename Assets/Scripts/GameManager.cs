@@ -2,6 +2,8 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System;
+using TMPro;
+using DigitalMetaverse;
 
 public class GameManager : MonoBehaviour
 {
@@ -12,32 +14,27 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     private User m_userPrefab;
     [SerializeField]
-    private List<AvatarInfo> m_defaultAvatars = new List<AvatarInfo>();
+    private List<IconWithID> m_defaultAvatars = new List<IconWithID>();
     [SerializeField]
-    private List<WorldInfo> m_defaultWorlds = new List<WorldInfo>();
+    private List<IconWithID> m_defaultWorlds = new List<IconWithID>();
 
     private User m_selectedUser;
+    private World m_selectedWorld;
     private List<User> m_users = new List<User>();
+    private List<World> m_worlds = new List<World>();
 
-    public ReadOnlyCollection<AvatarInfo> DefaultAvatars => new ReadOnlyCollection<AvatarInfo>(m_defaultAvatars);
-    public ReadOnlyCollection<WorldInfo> DefaultWorlds => new ReadOnlyCollection<WorldInfo>(m_defaultWorlds);
+    public ProcessHandler<AvatarInfo> logInProcess;
+    public ProcessHandler<AvatarInfo> avatarCreationProcess;
+    public ProcessHandler<WorldInfo> worldCreationProcess;
+    public ProcessHandler<List<AvatarInfo>> getAllAvatarsProcess;
+    public ProcessHandler<List<WorldInfo>> getAllWorldsProcess;
+    public ProcessHandler<List<string>> worldJoinnedProcess;
 
-    private ProcessStatus m_lastLogInStatus;
-    private ProcessStatus m_logInStatus;
-    private ProcessStatus m_lastAvatarCreationStatus;
-    private ProcessStatus m_avatarCreationStatus;
-    private ProcessStatus m_lastWorldCreationStatus;
-    private ProcessStatus m_worldCreationStatus;
-    private ProcessStatus m_lastGetAllWorldsStatus;
-    private ProcessStatus m_getAllWorldsStatus;
-    private ProcessStatus m_getAllAvatarsStatus;
-    private ProcessStatus m_lastGetAllAvatarsStatus;
+    public ReadOnlyCollection<IconWithID> DefaultAvatars => new ReadOnlyCollection<IconWithID>(m_defaultAvatars);
+    public ReadOnlyCollection<IconWithID> DefaultWorlds => new ReadOnlyCollection<IconWithID>(m_defaultWorlds);
 
-    public Action onLogInCompleted;
-    public Action<AvatarInfo> onAvatarCreationCompleted;
-    public Action<WorldInfo> onWorldCreationCompleted;
-    public Action<List<AvatarInfo>> onGetAllAvatarsCompleted;
-    public Action<List<WorldInfo>> onGetAllWorldsCompleted;
+    public AvatarInfo SelectedAvatarInfo { get; set; }
+    public WorldInfo SelectedWorldInfo { get; set; }
 
     private void Awake()
     {
@@ -54,58 +51,58 @@ public class GameManager : MonoBehaviour
         }
 
         m_instance = this;
+        logInProcess = new ProcessHandler<AvatarInfo>();
+        avatarCreationProcess = new ProcessHandler<AvatarInfo>();
+        worldCreationProcess = new ProcessHandler<WorldInfo>();
+        getAllAvatarsProcess = new ProcessHandler<List<AvatarInfo>>();
+        getAllWorldsProcess = new ProcessHandler<List<WorldInfo>>();
+        worldJoinnedProcess = new ProcessHandler<List<string>>();
     }
 
     private void Start()
     {
-        m_lastLogInStatus = ProcessStatus.None;
-        m_logInStatus = ProcessStatus.None;
-
-        m_lastAvatarCreationStatus = ProcessStatus.None;
-        m_avatarCreationStatus = ProcessStatus.None;
-
-        m_lastWorldCreationStatus = ProcessStatus.None;
-        m_worldCreationStatus = ProcessStatus.None;
-
-        m_lastGetAllAvatarsStatus = ProcessStatus.None;
-        m_getAllAvatarsStatus = ProcessStatus.None;
-
-        m_lastGetAllWorldsStatus = ProcessStatus.None;
-        m_getAllWorldsStatus = ProcessStatus.None;
+        worldJoinnedProcess.onProcessCompleted += OnAvatarJoinnedWorld;
     }
 
     private void Update()
     {
-        if (m_lastLogInStatus != m_logInStatus)
+        logInProcess.UpdateProcess();
+        avatarCreationProcess.UpdateProcess();
+        worldCreationProcess.UpdateProcess();
+        getAllAvatarsProcess.UpdateProcess();
+        getAllWorldsProcess.UpdateProcess();
+        worldJoinnedProcess.UpdateProcess();
+    }
+
+    private void OnAvatarJoinnedWorld(List<string> _info)
+    {
+        // m_selectedWorld = Instantiate()
+    }
+
+    public Sprite GetAvatarSprite(string _viewId)
+    {
+        foreach (var _avatar in m_defaultAvatars)
         {
-            onLogInCompleted?.Invoke();
+            if (_viewId == _avatar.viewId)
+            {
+                return _avatar.icon;
+            }
         }
 
-        if (m_lastAvatarCreationStatus != m_avatarCreationStatus)
+        return null;
+    }
+
+    public Sprite GetWorldSprite(string _viewId)
+    {
+        foreach (var _world in m_defaultWorlds)
         {
-            onAvatarCreationCompleted?.Invoke();
+            if (_viewId == _world.viewId)
+            {
+                return _world.icon;
+            }
         }
 
-        if (m_lastWorldCreationStatus != m_worldCreationStatus)
-        {
-            onWorldCreationCompleted?.Invoke();
-        }
-
-        if (m_lastGetAllAvatarsStatus != m_getAllAvatarsStatus)
-        {
-            onGetAllAvatarsCompleted?.Invoke();
-        }
-
-        if (m_lastGetAllWorldsStatus != m_getAllWorldsStatus)
-        {
-            onGetAllWorldsCompleted?.Invoke();
-        }
-
-        m_lastLogInStatus = m_logInStatus;
-        m_lastAvatarCreationStatus = m_avatarCreationStatus;
-        m_lastWorldCreationStatus = m_worldCreationStatus;
-        m_lastGetAllAvatarsStatus = m_getAllAvatarsStatus;
-        m_lastGetAllWorldsStatus = m_getAllWorldsStatus;
+        return null;
     }
 
     public void SignIn()
@@ -113,7 +110,7 @@ public class GameManager : MonoBehaviour
         User _user = Instantiate(m_userPrefab);
         m_selectedUser = _user;
         m_users.Add(_user);
-        m_logInStatus = ProcessStatus.Completed;
+        logInProcess.ChangeProcessToCompleted(null);
     }
 
     public void SignUp()
@@ -121,7 +118,7 @@ public class GameManager : MonoBehaviour
         User _user = Instantiate(m_userPrefab);
         m_selectedUser = _user;
         m_users.Add(_user);
-        m_logInStatus = ProcessStatus.Completed;
+        logInProcess.ChangeProcessToCompleted(null);
     }
 
     public void CreateAvatar(string _avatarName, string _viewId)
@@ -137,8 +134,7 @@ public class GameManager : MonoBehaviour
         Debug.Log("Creating Avatar -> " + _avatarName + "...");
 #endif
         m_selectedUser.CreateAvatar(_avatarName, _viewId);
-        m_avatarCreationStatus = ProcessStatus.Running;
-        m_lastAvatarCreationStatus = ProcessStatus.Running;
+        avatarCreationProcess.ChangeProcessToRunning();
     }
 
     public void CreateWorld(string _worldName, string _viewId)
@@ -154,11 +150,42 @@ public class GameManager : MonoBehaviour
         Debug.Log("Creating World -> " + _worldName + "...");
 #endif
         m_selectedUser.CreateWorld(_worldName, _viewId);
-        m_worldCreationStatus = ProcessStatus.Running;
-        m_lastWorldCreationStatus = ProcessStatus.Running;
+        worldCreationProcess.ChangeProcessToRunning();
     }
 
-    public void JoinWorld(string _worldId)
+    public void JoinWorld()
+    {
+        if (m_selectedUser == null)
+        {
+#if UNITY_EDITOR
+            Debug.Log("No User is selected. First SignIn or SignUp.");
+#endif
+            return;
+        }
+        if (SelectedAvatarInfo == null)
+        {
+#if UNITY_EDITOR
+            Debug.Log("No Avatar is selected. First Select Any Avatar.");
+#endif
+            return;
+        }
+
+        if (SelectedWorldInfo == null)
+        {
+#if UNITY_EDITOR
+            Debug.Log("No World is selected. First Select Any World.");
+#endif
+            return;
+        }
+
+#if UNITY_EDITOR
+        Debug.Log("Joining avatar -> " + SelectedAvatarInfo.avatarName + ", " + "World -> " + SelectedWorldInfo.worldName + "...");
+#endif
+        m_selectedUser.JoinWorld(SelectedAvatarInfo.avatarId, SelectedWorldInfo.worldId);
+        worldJoinnedProcess.ChangeProcessToRunning();
+    }
+
+    public void GetAllMyAvatars()
     {
         if (m_selectedUser == null)
         {
@@ -168,25 +195,10 @@ public class GameManager : MonoBehaviour
             return;
         }
 #if UNITY_EDITOR
-        Debug.Log("Joining World" + _worldId + "...");
+        Debug.Log("Getting all Avatars...");
 #endif
-    }
-
-    public void GetAllAvatars()
-    {
-        if (m_selectedUser == null)
-        {
-#if UNITY_EDITOR
-            Debug.Log("No User is selected. First SignIn or SignUp.");
-#endif
-            return;
-        }
-#if UNITY_EDITOR
-        Debug.Log("Getting all Worlds...");
-#endif
-        m_selectedUser.GetAllAvatars();
-        m_getAllAvatarsStatus = ProcessStatus.Running;
-        m_lastGetAllAvatarsStatus = ProcessStatus.Running;
+        m_selectedUser.GetAllMyAvatars();
+        getAllAvatarsProcess.ChangeProcessToRunning();
     }
 
     public void GetAllWorlds()
@@ -202,27 +214,47 @@ public class GameManager : MonoBehaviour
         Debug.Log("Getting all Worlds...");
 #endif
         m_selectedUser.GetAllWorlds();
-        m_getAllWorldsStatus = ProcessStatus.Running;
-        m_lastGetAllWorldsStatus = ProcessStatus.Running;
+        getAllWorldsProcess.ChangeProcessToRunning();
     }
 
-    public void AvatarCreationCompleted()
+    public void GetAllAvatarsFromWorld(string _worldId)
     {
-        m_avatarCreationStatus = ProcessStatus.Completed;
+        if (m_selectedUser == null)
+        {
+#if UNITY_EDITOR
+            Debug.Log("No User is selected. First SignIn or SignUp.");
+#endif
+            return;
+        }
+#if UNITY_EDITOR
+        Debug.Log("Getting all Avatars from world -> " + _worldId + "...");
+#endif
+        m_selectedUser.GetAllAvatarsFromWorld(_worldId);
+        getAllAvatarsProcess.ChangeProcessToRunning();
     }
 
-    public void WorldCreationCompleted()
+    public void AvatarCreationCompleted(AvatarInfo _info)
     {
-        m_worldCreationStatus = ProcessStatus.Completed;
+        avatarCreationProcess.ChangeProcessToCompleted(_info);
     }
 
-    public void GetAllAvatarsCompleted()
+    public void WorldCreationCompleted(WorldInfo _info)
     {
-        m_getAllAvatarsStatus = ProcessStatus.Completed;
+        worldCreationProcess.ChangeProcessToCompleted(_info);
     }
 
-    public void GetAllWorldsCompleted()
+    public void WorldJoinnedCompleted(List<string> _infos)
     {
-        m_getAllWorldsStatus = ProcessStatus.Completed;
+        worldJoinnedProcess.ChangeProcessToCompleted(_infos);
+    }
+
+    public void GetAllAvatarsCompleted(List<AvatarInfo> _infos)
+    {
+        getAllAvatarsProcess.ChangeProcessToCompleted(_infos);
+    }
+
+    public void GetAllWorldsCompleted(List<WorldInfo> _infos)
+    {
+        getAllWorldsProcess.ChangeProcessToCompleted(_infos);
     }
 }

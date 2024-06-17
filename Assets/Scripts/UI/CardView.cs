@@ -16,6 +16,12 @@ public class CardView : MonoBehaviour
 
     public void UpdateName(string _name)
     {
+        if (string.IsNullOrEmpty(_name))
+        {
+            m_cardText.gameObject.SetActive(false);
+            return;
+        }
+        m_cardText.gameObject.SetActive(true);
         m_cardText.text = _name;
     }
 }

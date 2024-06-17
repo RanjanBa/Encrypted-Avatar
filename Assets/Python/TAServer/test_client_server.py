@@ -95,7 +95,7 @@ while is_running:
             msg = json.dumps(info)
             client.send(msg.encode())
         elif ch == 'ai' or ch == 'avatar info':
-            info[Keys.INSTRUCTION.value] = Instructions.ALL_AVATARS.value
+            info[Keys.INSTRUCTION.value] = Instructions.CLIENT_ALL_AVATARS.value
             msg = json.dumps(info)
             client.send(msg.encode())
         elif ch == 'exit':

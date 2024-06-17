@@ -1,7 +1,5 @@
 using System.Collections.Generic;
-using System.Runtime.Hosting;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class CanvasManager : MonoBehaviour
 {
@@ -13,6 +11,8 @@ public class CanvasManager : MonoBehaviour
     private GameObject m_authenticationPanel;
     [SerializeField]
     private GameObject m_mainMenuPanel;
+    [SerializeField]
+    private GameObject m_gameplayPanel;
 
     private GameObject m_currentActivePanel;
     private Stack<GameObject> m_lastActivePanels;
@@ -41,19 +41,24 @@ public class CanvasManager : MonoBehaviour
         m_lastActivePanels = new Stack<GameObject>();
         m_currentActivePanel = m_authenticationPanel;
 
-        GameManager.Instance.onLogInCompleted += () =>
+        GameManager.Instance.logInProcess.onProcessCompleted += (_) =>
         {
             ActivatePanel(m_mainMenuPanel);
         };
 
-        GameManager.Instance.onAvatarCreationCompleted += () =>
+        GameManager.Instance.avatarCreationProcess.onProcessCompleted += (_) =>
         {
             ActivatePanel(m_mainMenuPanel);
         };
 
-        GameManager.Instance.onWorldCreationCompleted += () =>
+        GameManager.Instance.worldCreationProcess.onProcessCompleted += (_) =>
         {
             ActivatePanel(m_mainMenuPanel);
+        };
+
+        GameManager.Instance.worldJoinnedProcess.onProcessCompleted += (_) =>
+        {
+            ActivatePanel(m_gameplayPanel);
         };
     }
 
@@ -82,7 +87,7 @@ public class CanvasManager : MonoBehaviour
             return;
         }
 
-        if (_panel == m_mainMenuPanel)
+        if (_panel == m_mainMenuPanel || _panel == m_gameplayPanel)
         {
             m_lastActivePanels.Clear();
         }

@@ -5,6 +5,7 @@ using System.Threading;
 using UnityEngine;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using UnityEngine.InputSystem;
 
 public class Client : MonoBehaviour
 {
@@ -24,7 +25,9 @@ public class Client : MonoBehaviour
     public Action onConnectedWithServer;
     public Action<AvatarInfo> onAvatarCreated;
     public Action<WorldInfo> onWorldCreated;
+    public Action<List<AvatarInfo>> onAllAvatarsRetrieved;
     public Action<List<WorldInfo>> onAllWorldsRetrieved;
+    public Action<List<string>> onWorldJoined;
 
     private void Start()
     {
@@ -133,6 +136,31 @@ public class Client : MonoBehaviour
                     };
                     onWorldCreated?.Invoke(_worldInfo);
                 }
+                else if (_msgCode == Instructions.CLIENT_ALL_AVATARS)
+                {
+                    List<AvatarInfo> _avatars = new List<AvatarInfo>();
+                    int idx = 0;
+                    while (true)
+                    {
+                        if (_parsedMsg.TryGetValue(idx.ToString(), out string _sentence))
+                        {
+                            string[] strs = _sentence.Split(',');
+                            AvatarInfo _info = new AvatarInfo()
+                            {
+                                avatarId = strs[0],
+                                avatarName = strs[1],
+                                viewId = strs[2]
+                            };
+                            _avatars.Add(_info);
+                            idx++;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                    onAllAvatarsRetrieved?.Invoke(_avatars);
+                }
                 else if (_msgCode == Instructions.ALL_WORLDS)
                 {
                     List<WorldInfo> _worlds = new List<WorldInfo>();
@@ -158,6 +186,44 @@ public class Client : MonoBehaviour
                     }
                     onAllWorldsRetrieved?.Invoke(_worlds);
                 }
+                else if (_msgCode == Instructions.JOIN_WORLD)
+                {
+                    if (_parsedMsg.TryGetValue(Keys.STATUS, out string _status))
+                    {
+                        if (string.Equals(_status, Status.COMPLETE))
+                        {
+                            onWorldJoined?.Invoke(new List<string>());
+                        }
+#if UNITY_EDITOR
+                        Debug.Log(_parsedMsg[Keys.MESSAGE]);
+#endif
+                    }
+                }
+                else if (_msgCode == Instructions.WORLD_ALL_AVATARS)
+                {
+                    List<AvatarInfo> _avatars = new List<AvatarInfo>();
+                    int idx = 0;
+                    while (true)
+                    {
+                        if (_parsedMsg.TryGetValue(idx.ToString(), out string _sentence))
+                        {
+                            string[] strs = _sentence.Split(',');
+                            AvatarInfo _info = new AvatarInfo()
+                            {
+                                avatarId = strs[0],
+                                avatarName = strs[1],
+                                viewId = strs[2]
+                            };
+                            _avatars.Add(_info);
+                            idx++;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                    onAllAvatarsRetrieved?.Invoke(_avatars);
+                }
 #if UNITY_EDITOR
                 else
                 {
@@ -182,8 +248,6 @@ public class Client : MonoBehaviour
             Debug.LogWarning("Json deserializatio error : " + e.ToString());
 #endif
         }
-
-
     }
 
     public void SendMessageToServer(string _message)

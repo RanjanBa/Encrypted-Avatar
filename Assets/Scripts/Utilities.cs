@@ -4,12 +4,12 @@ using UnityEngine;
 public static class Instructions
 {
     public const string CREATE_AVATAR = "create_avatar";
-    public const string ALL_AVATARS = "all_avatars";
+    public const string CLIENT_ALL_AVATARS = "client_all_avatars";
     public const string CREATE_WORLD = "create_world";
     public const string JOIN_WORLD = "join_world";
+    public const string WORLD_ALL_AVATARS = "world_all_avatars";
     public const string SEND_MSG = "send_msg";
     public const string SENT_KEY = "sent_key";
-    public const string WORLD_INFO = "world_info";
     public const string ALL_WORLDS = "all_worlds";
     public const string ENCRYPT_MSG = "encrypt_msg";
     public const string DECRYPT_MSG = "decrypt_msg";

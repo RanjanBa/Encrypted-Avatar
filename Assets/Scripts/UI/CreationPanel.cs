@@ -38,6 +38,14 @@ public class CreationPanel : MonoBehaviour
                 return;
             }
 
+            if (string.IsNullOrEmpty(m_viewId))
+            {
+#if UNITY_EDITOR
+                Debug.Log("You have to select avatar...");
+#endif
+                return;
+            }
+
             if (m_creationType == CreationType.Avatar)
             {
                 GameManager.Instance.CreateAvatar(m_inputField.text, m_viewId);
@@ -59,30 +67,39 @@ public class CreationPanel : MonoBehaviour
 
         if (m_creationType == CreationType.Avatar)
         {
-            ReadOnlyCollection<AvatarInfo> _avatarInfos = GameManager.Instance.DefaultAvatars;
+            ReadOnlyCollection<IconWithID> _avatarInfos = GameManager.Instance.DefaultAvatars;
 
             foreach (var _info in _avatarInfos)
             {
-                InstantiateBtn(_info.avatarIcon, _info.avatarName, _info.viewId);
+                InstantiateBtn(null, _info.viewId);
             }
         }
         else
         {
-            ReadOnlyCollection<WorldInfo> _worldInfos = GameManager.Instance.DefaultWorlds;
+            ReadOnlyCollection<IconWithID> _worldInfos = GameManager.Instance.DefaultWorlds;
 
             foreach (var _info in _worldInfos)
             {
-                InstantiateBtn(_info.worldIcon, _info.worldName, _info.viewId);
+                InstantiateBtn(null, _info.viewId);
             }
         }
     }
 
-    private void InstantiateBtn(Sprite _icon, string _name, string _viewId)
+    private void InstantiateBtn(string _name, string _viewId)
     {
         Button _btn = Instantiate(m_contentPrefab, m_contentContainer);
         CardView _cardView = _btn.GetComponent<CardView>();
+        Sprite _icon = null;
         if (_cardView)
         {
+            if (m_creationType == CreationType.Avatar)
+            {
+                _icon = GameManager.Instance.GetAvatarSprite(_viewId);
+            }
+            else
+            {
+                _icon = GameManager.Instance.GetWorldSprite(_viewId);
+            }
             _cardView.UpdateIcon(_icon);
             _cardView.UpdateName(_name);
         }
@@ -93,6 +110,9 @@ public class CreationPanel : MonoBehaviour
             m_selectedCardView.UpdateIcon(_icon);
             m_selectedCardView.UpdateName(_name);
             m_viewId = _viewId;
+#if UNITY_EDITOR
+            Debug.Log("Selected avatar view id -> " + _viewId + "...");
+#endif
         });
     }
 }

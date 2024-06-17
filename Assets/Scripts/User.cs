@@ -6,12 +6,9 @@ using UnityEngine;
 [RequireComponent(typeof(Client))]
 public class User : MonoBehaviour
 {
-    private string m_userName;
-    private string m_usedId;
-    private string m_privateKey;
-    private string m_publicKey;
-
-    public string UserName => m_userName;
+    // private string m_usedId;
+    // private string m_privateKey;
+    // private string m_publicKey;
 
     private Client m_mainServerClient;
 
@@ -20,17 +17,27 @@ public class User : MonoBehaviour
         m_mainServerClient = GetComponent<Client>();
         m_mainServerClient.onAvatarCreated += (_avatarInfo) =>
         {
-            GameManager.Instance.AvatarCreationCompleted();
+            GameManager.Instance.AvatarCreationCompleted(_avatarInfo);
         };
 
         m_mainServerClient.onWorldCreated += (_worldInfo) =>
         {
-            GameManager.Instance.WorldCreationCompleted();
+            GameManager.Instance.WorldCreationCompleted(_worldInfo);
+        };
+
+        m_mainServerClient.onAllAvatarsRetrieved += (_avatars) =>
+        {
+            GameManager.Instance.GetAllAvatarsCompleted(_avatars);
         };
 
         m_mainServerClient.onAllWorldsRetrieved += (_worlds) =>
         {
-            GameManager.Instance.AvatarCreationCompleted();
+            GameManager.Instance.GetAllWorldsCompleted(_worlds);
+        };
+
+        m_mainServerClient.onWorldJoined += (_ids) =>
+        {
+            GameManager.Instance.WorldJoinnedCompleted(_ids);
         };
     }
 
@@ -57,10 +64,10 @@ public class User : MonoBehaviour
         m_mainServerClient.SendMessageToServer(_msg);
     }
 
-    public void GetAllAvatars()
+    public void GetAllMyAvatars()
     {
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
-            {Keys.INSTRUCTION, Instructions.ALL_AVATARS}
+            {Keys.INSTRUCTION, Instructions.CLIENT_ALL_AVATARS}
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
@@ -71,6 +78,29 @@ public class User : MonoBehaviour
     {
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
             {Keys.INSTRUCTION, Instructions.ALL_WORLDS}
+        };
+
+        string _msg = JsonConvert.SerializeObject(_msgDict);
+        m_mainServerClient.SendMessageToServer(_msg);
+    }
+
+    public void JoinWorld(string _avatarId, string _worldId)
+    {
+        Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
+            {Keys.INSTRUCTION, Instructions.JOIN_WORLD},
+            {Keys.AVATAR_ID, _avatarId},
+            {Keys.WORLD_ID, _worldId}
+        };
+
+        string _msg = JsonConvert.SerializeObject(_msgDict);
+        m_mainServerClient.SendMessageToServer(_msg);
+    }
+
+    public void GetAllAvatarsFromWorld(string _worldId)
+    {
+        Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
+            {Keys.INSTRUCTION, Instructions.JOIN_WORLD},
+            {Keys.WORLD_ID, _worldId}
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
