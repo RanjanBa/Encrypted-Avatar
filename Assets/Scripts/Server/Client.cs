@@ -27,7 +27,7 @@ public class Client : MonoBehaviour
     public Action<WorldInfo> onWorldCreated;
     public Action<List<AvatarInfo>> onAllAvatarsRetrieved;
     public Action<List<WorldInfo>> onAllWorldsRetrieved;
-    public Action<List<string>> onWorldJoined;
+    public Action<JoinInfo> onWorldJoined;
 
     private void Start()
     {
@@ -149,7 +149,7 @@ public class Client : MonoBehaviour
                             {
                                 avatarId = strs[0],
                                 avatarName = strs[1],
-                                viewId = strs[2]
+                                avatarViewId = strs[2]
                             };
                             _avatars.Add(_info);
                             idx++;
@@ -174,7 +174,7 @@ public class Client : MonoBehaviour
                             {
                                 worldId = strs[0],
                                 worldName = strs[1],
-                                viewId = strs[2]
+                                worldViewId = strs[2]
                             };
                             _worlds.Add(_info);
                             idx++;
@@ -188,16 +188,22 @@ public class Client : MonoBehaviour
                 }
                 else if (_msgCode == Instructions.JOIN_WORLD)
                 {
-                    if (_parsedMsg.TryGetValue(Keys.STATUS, out string _status))
+                    JoinInfo _joinInfo = new JoinInfo()
                     {
-                        if (string.Equals(_status, Status.COMPLETE))
+                        worldInfo = new WorldInfo()
                         {
-                            onWorldJoined?.Invoke(new List<string>());
+                            worldId = _parsedMsg[Keys.WORLD_ID],
+                            worldName = _parsedMsg[Keys.WORLD_NAME],
+                            worldViewId = _parsedMsg[Keys.WORLD_VIEW_ID]
+                        },
+                        avatarInfo = new AvatarInfo()
+                        {
+                            avatarId = _parsedMsg[Keys.AVATAR_ID],
+                            avatarName = _parsedMsg[Keys.AVATAR_NAME],
+                            avatarViewId = _parsedMsg[Keys.AVATAR_VIEW_ID]
                         }
-#if UNITY_EDITOR
-                        Debug.Log(_parsedMsg[Keys.MESSAGE]);
-#endif
-                    }
+                    };
+                    onWorldJoined?.Invoke(_joinInfo);
                 }
                 else if (_msgCode == Instructions.WORLD_ALL_AVATARS)
                 {
@@ -212,7 +218,7 @@ public class Client : MonoBehaviour
                             {
                                 avatarId = strs[0],
                                 avatarName = strs[1],
-                                viewId = strs[2]
+                                avatarViewId = strs[2]
                             };
                             _avatars.Add(_info);
                             idx++;
@@ -225,6 +231,14 @@ public class Client : MonoBehaviour
                     onAllAvatarsRetrieved?.Invoke(_avatars);
                 }
 #if UNITY_EDITOR
+                else if (_msgCode == Instructions.ERROR)
+                {
+                    Debug.Log("Error occurs in server side...");
+                    if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
+                    {
+                        Debug.Log(_msg);
+                    }
+                }
                 else
                 {
                     Debug.Log("Message is sent without proper instruction -> " + _msgCode);

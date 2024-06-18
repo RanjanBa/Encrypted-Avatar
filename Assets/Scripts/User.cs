@@ -35,9 +35,9 @@ public class User : MonoBehaviour
             GameManager.Instance.GetAllWorldsCompleted(_worlds);
         };
 
-        m_mainServerClient.onWorldJoined += (_ids) =>
+        m_mainServerClient.onWorldJoined += (_info) =>
         {
-            GameManager.Instance.WorldJoinnedCompleted(_ids);
+            GameManager.Instance.WorldJoinnedCompleted(_info);
         };
     }
 
@@ -46,7 +46,7 @@ public class User : MonoBehaviour
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
             {Keys.INSTRUCTION, Instructions.CREATE_AVATAR},
             {Keys.AVATAR_NAME, _avatarName},
-            {Keys.VIEW_ID, _viewId}
+            {Keys.AVATAR_VIEW_ID, _viewId}
         };
         string _msg = JsonConvert.SerializeObject(_msgDict);
         m_mainServerClient.SendMessageToServer(_msg);
@@ -57,7 +57,7 @@ public class User : MonoBehaviour
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
             {Keys.INSTRUCTION, Instructions.CREATE_WORLD},
             {Keys.WORLD_NAME, _worldName},
-            {Keys.VIEW_ID, _viewId}
+            {Keys.WORLD_VIEW_ID, _viewId}
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
@@ -99,7 +99,7 @@ public class User : MonoBehaviour
     public void GetAllAvatarsFromWorld(string _worldId)
     {
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
-            {Keys.INSTRUCTION, Instructions.JOIN_WORLD},
+            {Keys.INSTRUCTION, Instructions.WORLD_ALL_AVATARS},
             {Keys.WORLD_ID, _worldId}
         };
 

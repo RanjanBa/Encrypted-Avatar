@@ -24,12 +24,12 @@ public class SelectionPanel : MonoBehaviour
     {
         if (m_selectionType == SelectionType.Avatar)
         {
-            GameManager.Instance.getAllAvatarsProcess.onProcessCompleted += OnAllAvatarsRetrieved;
+            GameManager.Instance.getAllAvatarsProcess.Subscribe(OnAllAvatarsRetrieved);
             GameManager.Instance.GetAllMyAvatars();
         }
         else
         {
-            GameManager.Instance.getAllWorldsProcess.onProcessCompleted += OnAllWorldsRetrieved;
+            GameManager.Instance.getAllWorldsProcess.Subscribe(OnAllWorldsRetrieved);
             GameManager.Instance.GetAllWorlds();
         }
     }
@@ -38,11 +38,11 @@ public class SelectionPanel : MonoBehaviour
     {
         if (m_selectionType == SelectionType.Avatar)
         {
-            GameManager.Instance.getAllAvatarsProcess.onProcessCompleted -= OnAllAvatarsRetrieved;
+            GameManager.Instance.getAllAvatarsProcess.Unsubscribe(OnAllAvatarsRetrieved);
         }
         else
         {
-            GameManager.Instance.getAllWorldsProcess.onProcessCompleted -= OnAllWorldsRetrieved;
+            GameManager.Instance.getAllWorldsProcess.Unsubscribe(OnAllWorldsRetrieved);
         }
     }
 
@@ -51,7 +51,7 @@ public class SelectionPanel : MonoBehaviour
         DestroyContents();
         foreach (var _avatar in _avatars)
         {
-            Button _btn = InstantiateBtn(_avatar.avatarName, _avatar.viewId);
+            Button _btn = InstantiateBtn(_avatar.avatarName, _avatar.avatarViewId);
             _btn.onClick.AddListener(() =>
             {
                 GameManager.Instance.SelectedAvatarInfo = _avatar;
@@ -65,7 +65,7 @@ public class SelectionPanel : MonoBehaviour
         DestroyContents();
         foreach (var _world in _worlds)
         {
-            Button _btn = InstantiateBtn(_world.worldName, _world.viewId);
+            Button _btn = InstantiateBtn(_world.worldName, _world.worldViewId);
             _btn.onClick.AddListener(() =>
             {
                 GameManager.Instance.SelectedWorldInfo = _world;

@@ -16,36 +16,12 @@ public class ChatUIView : MonoBehaviour
     [SerializeField]
     private GameObject m_receiveMessagePanel;
 
-    private DigitalAvatar m_avatar;
-
-    public DigitalAvatar Avatar
+    private void Start()
     {
-        get { return m_avatar; }
-        set
-        {
-            m_avatar = value;
-            UpdateAvatarView(m_avatar);
-            // m_avatar.onMessageReceived += UpdateTextView;
-        }
     }
 
-    public Button SendMsgBtn
+    public void UpdateAvatarView(AvatarInfo _avatarInfo)
     {
-        get { return m_sendMsgBtn; }
-    }
-
-    public TMP_InputField MessageInputField
-    {
-        get { return m_messageInputField; }
-    }
-
-    private void UpdateAvatarView(DigitalAvatar _avatar)
-    {
-        // m_avatarNameText.text = _avatar.AvatarName;
-    }
-
-    private void UpdateTextView(string _msg)
-    {
-        m_receiveMessageText.text = _msg;
+        m_avatarNameText.text = _avatarInfo.avatarName;
     }
 }

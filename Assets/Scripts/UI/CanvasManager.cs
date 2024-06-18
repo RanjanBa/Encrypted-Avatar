@@ -41,25 +41,25 @@ public class CanvasManager : MonoBehaviour
         m_lastActivePanels = new Stack<GameObject>();
         m_currentActivePanel = m_authenticationPanel;
 
-        GameManager.Instance.logInProcess.onProcessCompleted += (_) =>
+        GameManager.Instance.logInProcess.Subscribe((_) =>
         {
             ActivatePanel(m_mainMenuPanel);
-        };
+        });
 
-        GameManager.Instance.avatarCreationProcess.onProcessCompleted += (_) =>
+        GameManager.Instance.avatarCreationProcess.Subscribe((_) =>
         {
             ActivatePanel(m_mainMenuPanel);
-        };
+        });
 
-        GameManager.Instance.worldCreationProcess.onProcessCompleted += (_) =>
+        GameManager.Instance.worldCreationProcess.Subscribe((_) =>
         {
             ActivatePanel(m_mainMenuPanel);
-        };
+        });
 
-        GameManager.Instance.worldJoinnedProcess.onProcessCompleted += (_) =>
+        GameManager.Instance.worldJoinnedProcess.Subscribe((_) =>
         {
             ActivatePanel(m_gameplayPanel);
-        };
+        });
     }
 
     public void OnBack()

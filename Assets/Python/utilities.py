@@ -13,6 +13,7 @@ class Instructions(Enum):
     ENCRYPT_MSG = "encrypt_msg"
     DECRYPT_MSG = "decrypt_msg"
     GENERATE_KEY = "generate_key"
+    ERROR = "error"
     
 class Keys(Enum):
     INSTRUCTION = "instruction"
@@ -20,17 +21,13 @@ class Keys(Enum):
     RECIEVER = "receiver"
     WORLD_ID = "world_id"
     WORLD_NAME = "world_name"
+    WORLD_VIEW_ID = "world_view_id"
     AVATAR_ID = "avatar_id"
     AVATAR_NAME = "avatar_name"
-    VIEW_ID = "view_id"
+    AVATAR_VIEW_ID = "avatar_view_id"
     PUBLIC_KEY = "public_key"
     PRIVATE_KEY = "private_key"
     ENC_SESSION_KEY = "enc_session_key"
     TAG = "tag"
     CIPHER_TEXT = "cipher_text"
     NONCE = "nonce"
-    STATUS = "status"
-    
-class Status(Enum):
-    COMPLETE = "complete"
-    ERROR = "error"

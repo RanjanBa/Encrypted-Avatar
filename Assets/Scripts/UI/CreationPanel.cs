@@ -41,7 +41,14 @@ public class CreationPanel : MonoBehaviour
             if (string.IsNullOrEmpty(m_viewId))
             {
 #if UNITY_EDITOR
-                Debug.Log("You have to select avatar...");
+                if (m_creationType == CreationType.Avatar)
+                {
+                    Debug.Log("You have to select avatar...");
+                }
+                else
+                {
+                    Debug.Log("You have to select world...");
+                }
 #endif
                 return;
             }
@@ -59,6 +66,7 @@ public class CreationPanel : MonoBehaviour
 
     private void OnEnable()
     {
+        m_viewId = null;
         m_selectedCardView.gameObject.SetActive(false);
         for (int i = m_contentContainer.childCount - 1; i >= 0; i--)
         {
