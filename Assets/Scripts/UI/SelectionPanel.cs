@@ -22,6 +22,7 @@ public class SelectionPanel : MonoBehaviour
 
     private void OnEnable()
     {
+        DestroyContents();
         if (m_selectionType == SelectionType.Avatar)
         {
             GameManager.Instance.getAllAvatarsProcess.Subscribe(OnAllAvatarsRetrieved);
@@ -48,13 +49,13 @@ public class SelectionPanel : MonoBehaviour
 
     private void OnAllAvatarsRetrieved(List<AvatarInfo> _avatars)
     {
-        DestroyContents();
+
         foreach (var _avatar in _avatars)
         {
             Button _btn = InstantiateBtn(_avatar.avatarName, _avatar.avatarViewId);
             _btn.onClick.AddListener(() =>
             {
-                GameManager.Instance.SelectedAvatarInfo = _avatar;
+                GameManager.Instance.UpdateSelectedAvatar(_avatar);
                 m_onCardViewClick?.Invoke();
             });
         }
@@ -62,13 +63,12 @@ public class SelectionPanel : MonoBehaviour
 
     private void OnAllWorldsRetrieved(List<WorldInfo> _worlds)
     {
-        DestroyContents();
         foreach (var _world in _worlds)
         {
             Button _btn = InstantiateBtn(_world.worldName, _world.worldViewId);
             _btn.onClick.AddListener(() =>
             {
-                GameManager.Instance.SelectedWorldInfo = _world;
+                GameManager.Instance.UpdateSelectedWorld(_world);
                 m_onCardViewClick?.Invoke();
             });
         }

@@ -22,13 +22,13 @@ public static class Keys
 {
     public const string INSTRUCTION = "instruction";
     public const string MESSAGE = "msg";
-    public const string RECIEVER = "receiver";
     public const string WORLD_ID = "world_id";
     public const string WORLD_NAME = "world_name";
     public const string WORLD_VIEW_ID = "world_view_id";
     public const string AVATAR_ID = "avatar_id";
     public const string AVATAR_NAME = "avatar_name";
     public const string AVATAR_VIEW_ID = "avatar_view_id";
+    public const string RECIEVER_ID = "receiver_id";
     public const string PUBLIC_KEY = "public_key";
     public const string PRIVATE_KEY = "private_key";
     public const string ENC_SESSION_KEY = "enc_session_key";

@@ -12,9 +12,9 @@ public class AvatarSelectionPanel : MonoBehaviour
     [SerializeField]
     private Transform m_contentContainer;
     [SerializeField]
-    private Button m_leftAvatarBtn;
+    private Toggle m_leftToggle;
     [SerializeField]
-    private Button m_rightAvatarBtn;
+    private Toggle m_rightToggle;
     [SerializeField]
     private CardView m_leftCardView;
     [SerializeField]
@@ -28,15 +28,21 @@ public class AvatarSelectionPanel : MonoBehaviour
     private void Start()
     {
         m_selectedCardView = null;
-        m_leftAvatarBtn.onClick.AddListener(() =>
+        m_leftToggle.onValueChanged.AddListener((_state) =>
         {
-            m_selectedCardView = m_leftCardView;
-            m_isLeftSelected = true;
+            if (_state)
+            {
+                m_selectedCardView = m_leftCardView;
+                m_isLeftSelected = true;
+            }
         });
-        m_rightAvatarBtn.onClick.AddListener(() =>
+        m_rightToggle.onValueChanged.AddListener((_state) =>
         {
-            m_selectedCardView = m_rightCardView;
-            m_isLeftSelected = false;
+            if (_state)
+            {
+                m_selectedCardView = m_rightCardView;
+                m_isLeftSelected = false;
+            }
         });
         m_doneBtn.onClick.AddListener(() =>
         {
@@ -47,13 +53,16 @@ public class AvatarSelectionPanel : MonoBehaviour
     private void OnEnable()
     {
         DestroyContents();
+#if UNITY_EDITOR
+        Debug.Log("Avatar Selection Panel Subscribed.");
+#endif
         GameManager.Instance.getAllAvatarsProcess.Subscribe(OnAvatarsRetrieved);
         StartCoroutine(GetAvatars());
     }
 
     private IEnumerator GetAvatars()
     {
-        yield return new WaitForSeconds(2);
+        yield return new WaitForSeconds(0);
         GameManager.Instance.GetAllAvatarsFromSelectedWorld();
     }
 
@@ -75,9 +84,12 @@ public class AvatarSelectionPanel : MonoBehaviour
             {
                 if (m_selectedCardView != null)
                 {
-                    m_selectedCardView.UpdateName(_avatar.avatarName);
-                    m_selectedCardView.UpdateIcon(GameManager.Instance.GetAvatarSprite(_avatar.avatarViewId));
-                    m_gameplayUIManager.UpdateChatView(_avatar, m_isLeftSelected);
+                    if (m_gameplayUIManager.CanUpdateChatView(_avatar, m_isLeftSelected))
+                    {
+                        m_selectedCardView.UpdateName(_avatar.avatarName);
+                        m_selectedCardView.UpdateIcon(GameManager.Instance.GetAvatarSprite(_avatar.avatarViewId));
+                    }
+
                 }
 #if UNITY_EDITOR
                 else

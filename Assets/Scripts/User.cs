@@ -10,7 +10,24 @@ public class User : MonoBehaviour
     // private string m_privateKey;
     // private string m_publicKey;
 
+    // public ProcessHandler<AvatarInfo> logInProcess;
+    // public ProcessHandler<AvatarInfo> avatarCreationProcess;
+    // public ProcessHandler<WorldInfo> worldCreationProcess;
+    // public ProcessHandler<List<AvatarInfo>> getAllAvatarsProcess;
+    // public ProcessHandler<List<WorldInfo>> getAllWorldsProcess;
+    // public ProcessHandler<JoinInfo> worldJoinnedProcess;
+
     private Client m_mainServerClient;
+
+    // void Awake()
+    // {
+    //     logInProcess = new ProcessHandler<AvatarInfo>();
+    //     avatarCreationProcess = new ProcessHandler<AvatarInfo>();
+    //     worldCreationProcess = new ProcessHandler<WorldInfo>();
+    //     getAllAvatarsProcess = new ProcessHandler<List<AvatarInfo>>();
+    //     getAllWorldsProcess = new ProcessHandler<List<WorldInfo>>();
+    //     worldJoinnedProcess = new ProcessHandler<JoinInfo>();
+    // }
 
     private void Start()
     {
@@ -40,6 +57,26 @@ public class User : MonoBehaviour
             GameManager.Instance.WorldJoinnedCompleted(_info);
         };
     }
+
+    // private void Update()
+    // {
+    //     logInProcess.UpdateProcess();
+    //     avatarCreationProcess.UpdateProcess();
+    //     worldCreationProcess.UpdateProcess();
+    //     getAllAvatarsProcess.UpdateProcess();
+    //     getAllWorldsProcess.UpdateProcess();
+    //     worldJoinnedProcess.UpdateProcess();
+    // }
+
+    // public void SignIn()
+    // {
+    //     logInProcess.ChangeProcessToCompleted(null);
+    // }
+
+    // public void SignUp()
+    // {
+    //     logInProcess.ChangeProcessToCompleted(null);
+    // }
 
     public void CreateAvatar(string _avatarName, string _viewId)
     {
@@ -101,6 +138,19 @@ public class User : MonoBehaviour
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
             {Keys.INSTRUCTION, Instructions.WORLD_ALL_AVATARS},
             {Keys.WORLD_ID, _worldId}
+        };
+
+        string _msg = JsonConvert.SerializeObject(_msgDict);
+        m_mainServerClient.SendMessageToServer(_msg);
+    }
+
+    public void SendMessage(string _sendMsg, string _worldId, string _receiverId)
+    {
+        Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
+            {Keys.INSTRUCTION, Instructions.WORLD_ALL_AVATARS},
+            {Keys.WORLD_ID, _worldId},
+            {Keys.RECIEVER_ID, _receiverId},
+            {Keys.MESSAGE, _sendMsg}
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);

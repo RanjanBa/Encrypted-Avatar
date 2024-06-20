@@ -10,6 +10,8 @@ public class ProcessHandler<T> where T : class
 
     private Action<T> m_onProcessCompleted;
 
+    public ProcessStatus StatusOfProcess => m_status;
+
     public ProcessHandler()
     {
         m_lastStatus = ProcessStatus.None;
@@ -29,17 +31,20 @@ public class ProcessHandler<T> where T : class
 
     public void ChangeProcessToNone()
     {
+        m_lastStatus = m_status;
         m_status = ProcessStatus.None;
         m_info = null;
     }
 
     public void ChangeProcessToRunning()
     {
+        m_lastStatus = m_status;
         m_status = ProcessStatus.Running;
     }
 
     public void ChangeProcessToCompleted(T _info)
     {
+        m_lastStatus = m_status;
         m_status = ProcessStatus.Completed;
         m_info = _info;
     }
@@ -51,9 +56,13 @@ public class ProcessHandler<T> where T : class
             if (m_status == ProcessStatus.Completed)
             {
 #if UNITY_EDITOR
-                if (m_onProcessCompleted != null)
+                if (m_onProcessCompleted == null)
                 {
                     Debug.LogWarning("No method is subscribed to process");
+                }
+                else
+                {
+                    Debug.Log("Processs... -> " + StatusOfProcess.ToString());
                 }
 #endif
                 m_onProcessCompleted?.Invoke(m_info);

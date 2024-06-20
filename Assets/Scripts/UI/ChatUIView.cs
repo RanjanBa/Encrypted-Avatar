@@ -16,12 +16,13 @@ public class ChatUIView : MonoBehaviour
     [SerializeField]
     private GameObject m_receiveMessagePanel;
 
-    private void Start()
-    {
-    }
+    private AvatarInfo m_avatarInfo;
+
+    public AvatarInfo AvatarInfo => m_avatarInfo;
 
     public void UpdateAvatarView(AvatarInfo _avatarInfo)
     {
+        m_avatarInfo = _avatarInfo;
         m_avatarNameText.text = _avatarInfo.avatarName;
     }
 }

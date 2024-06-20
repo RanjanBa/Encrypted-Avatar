@@ -38,6 +38,7 @@ public class CanvasManager : MonoBehaviour
     {
         m_authenticationPanel.SetActive(true);
         m_mainMenuPanel.SetActive(false);
+        m_gameplayPanel.SetActive(false);
         m_lastActivePanels = new Stack<GameObject>();
         m_currentActivePanel = m_authenticationPanel;
 

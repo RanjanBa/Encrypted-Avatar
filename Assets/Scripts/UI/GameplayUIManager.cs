@@ -5,15 +5,11 @@ using UnityEngine.UI;
 public class GameplayUIManager : MonoBehaviour
 {
     [SerializeField]
-    private GameObject m_mainMenuPanel;
+    private GameObject m_worldPanel;
     [SerializeField]
     private GameObject m_avatarSelectionChatPanel;
     [SerializeField]
     private GameObject m_chatViewPanel;
-    [SerializeField]
-    private GameObject m_worldPanel;
-    [SerializeField]
-    private Button m_gotoMainMenuBtn;
     [SerializeField]
     private Button m_selectAvatarBtn;
     [SerializeField]
@@ -25,24 +21,19 @@ public class GameplayUIManager : MonoBehaviour
 
     private void Start()
     {
-        m_worldPanel.SetActive(true);
-        m_avatarSelectionChatPanel.SetActive(false);
-        m_chatViewPanel.SetActive(false);
         m_selectAvatarBtn.onClick.AddListener(() =>
         {
             m_worldPanel.SetActive(false);
             m_chatViewPanel.SetActive(false);
             m_avatarSelectionChatPanel.SetActive(true);
         });
-        m_gotoMainMenuBtn.onClick.AddListener(() =>
-        {
-            m_mainMenuPanel.SetActive(true);
-            gameObject.SetActive(false);
-        });
     }
 
     private void OnEnable()
     {
+        m_worldPanel.SetActive(true);
+        m_avatarSelectionChatPanel.SetActive(false);
+        m_chatViewPanel.SetActive(false);
         GameManager.Instance.onSelectedWorldChanged += OnNewWorldJoinned;
     }
 
@@ -56,16 +47,38 @@ public class GameplayUIManager : MonoBehaviour
         m_worldNameText.text = _worldInfo.worldName;
     }
 
-    public void UpdateChatView(AvatarInfo _avatarInfo, bool _isLeft)
+    public bool CanUpdateChatView(AvatarInfo _avatarInfo, bool _isLeft)
     {
         if (_isLeft)
         {
+            if (m_rightChatView.AvatarInfo != null)
+            {
+                if (_avatarInfo.avatarId == m_rightChatView.AvatarInfo.avatarId)
+                {
+#if UNITY_EDITOR
+                    Debug.Log("Select Different Avatar for left Chat View...");
+#endif
+                    return false;
+                }
+            }
             m_leftChatView.UpdateAvatarView(_avatarInfo);
         }
         else
         {
+            if (m_leftChatView.AvatarInfo != null)
+            {
+                if (_avatarInfo.avatarId == m_leftChatView.AvatarInfo.avatarId)
+                {
+#if UNITY_EDITOR
+                    Debug.Log("Select Different Avatar for right Chat View...");
+#endif
+                    return false;
+                }
+            }
             m_rightChatView.UpdateAvatarView(_avatarInfo);
         }
+
+        return true;
     }
 
     public void AvatarSelectionDone()

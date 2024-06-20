@@ -27,12 +27,21 @@ worldsDict : dict[str, World] = {}
 pk, sk = Kyber1024.keygen()
 
 
-def getClient(address, port) -> Client:
+def getClientFromAddress(address, port) -> Client:
     for client in clients:
         h, p = client.socket.getpeername()
         if h == address and p == port:
             return client
         
+    return None
+
+
+def getClientFromAvatarId(avatar_id) -> Client:
+    for client in clients:
+        av = client.getAvatar(avatar_id)
+        if av != None:
+            return client
+
     return None
 
 
@@ -52,7 +61,6 @@ def createAvatar(client : Client, parsedMsg : dict):
     avatar_id = str(uuid.uuid4())
     
     avatar = Avatar(avatar_id, avatar_name, avatar_view_id)
-    
     
     if client.addAvatar(avatar):
         info[Keys.INSTRUCTION.value] = Instructions.CREATE_AVATAR.value
@@ -214,35 +222,57 @@ def worldAllAvatars(client : Client, parsedMsg : dict):
 
 
 def sendMessage(client : Client, parsedMsg : dict):
-    if not Keys.AVATAR_ID.value in parsedMsg:
+    print("Sending Message to Avatar")
+    info : dict[str, str] = {}
+    
+    if not Keys.WORLD_ID.value in parsedMsg:
+        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
+        info[Keys.MESSAGE.value] = "No world id key is present in the msg."
+        msg = json.dumps(info)
+        client.sendMessage(msg)
+        print("No world id key is present in the msg.")
+        return
+
+    if not Keys.RECIEVER_ID.value in parsedMsg:
+        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
+        info[Keys.MESSAGE.value] = "No avatar id key is present in the msg."
+        msg = json.dumps(info)
+        client.sendMessage(msg)
         print("No avatar id key is present in the msg.")
         return
 
     if not Keys.MESSAGE.value in parsedMsg:
+        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
+        info[Keys.MESSAGE.value] = "No message key is present in the msg."
+        msg = json.dumps(info)
+        client.sendMessage(msg)
         print("No message key is present in the msg.")
         return
 
-    avatar_id = parsedMsg[Keys.AVATAR_ID.value]
+    world_id = parsedMsg[Keys.WORLD_ID.value]
+    receiver_id = parsedMsg[Keys.RECIEVER_ID.value]
     
-    receiver : Client = None
-    for c in clients:
-        av = c.getAvatar(avatar_id)
-        if av != None:
-            print("FOUND RECEIVER...")
-            receiver = c
-            break
+    if not receiver_id in worldsDict[world_id]:
+        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
+        info[Keys.MESSAGE.value] = f"No avatar {receiver_id} is present in the world {world_id}."
+        msg = json.dumps(info)
+        client.sendMessage(msg)
+        print(f"No avatar {receiver_id} is present in the world {world_id}.")
+        return
+    
+    receiver : Client = getClientFromAvatarId(receiver_id)
+    if receiver is None:
+        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
+        info[Keys.MESSAGE.value] = f"No receiver is found with avatar id {receiver_id}."
+        msg = json.dumps(info)
+        client.sendMessage(msg)
+        print(f"No receiver is found with avatar id {receiver_id}.")
+        return
 
-    msg = parsedMsg[Keys.MESSAGE.value]
-    
-    if receiver != None:
-        if receiver != client:
-            receiver.sendMessage(msg)
-        else:
-            print("Can't send to itself...")
-            client.sendMessage("Can't send to itself...")
-    else:
-        print("Can't find receiver")
-        client.sendMessage("Can't find receiver client")
+    info[Keys.INSTRUCTION.value] = Instructions.SEND_MSG.value
+    info[Keys.MESSAGE.value] = parsedMsg[Keys.MESSAGE.value]
+    msg = json.dumps(info)
+    receiver.sendMessage(msg)
 
 
 def parseMessage(msg : str, client : Client):
@@ -274,7 +304,7 @@ def parseMessage(msg : str, client : Client):
 
 def handleClient(client_socket : socket):
     h, p = client_socket.getpeername()
-    client = getClient(h, p)
+    client = getClientFromAddress(h, p)
     
     info = {}
     if client != None:
