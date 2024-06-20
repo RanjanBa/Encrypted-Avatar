@@ -12,7 +12,7 @@ public class AuthenticationPanel : MonoBehaviour
     {
         m_signInBtn.onClick.AddListener(() =>
         {
-            GameManager.Instance.SignIn();
+            // GameManager.Instance.SignIn();
         });
         m_signUpBtn.onClick.AddListener(() =>
         {

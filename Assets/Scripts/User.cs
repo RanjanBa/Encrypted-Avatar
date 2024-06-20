@@ -2,84 +2,112 @@ using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 [RequireComponent(typeof(Client))]
 public class User : MonoBehaviour
 {
-    // private string m_usedId;
+    [SerializeField]
+    private string m_usedId;
     // private string m_privateKey;
     // private string m_publicKey;
 
-    // public ProcessHandler<AvatarInfo> logInProcess;
-    // public ProcessHandler<AvatarInfo> avatarCreationProcess;
-    // public ProcessHandler<WorldInfo> worldCreationProcess;
-    // public ProcessHandler<List<AvatarInfo>> getAllAvatarsProcess;
-    // public ProcessHandler<List<WorldInfo>> getAllWorldsProcess;
-    // public ProcessHandler<JoinInfo> worldJoinnedProcess;
-
     private Client m_mainServerClient;
 
-    // void Awake()
-    // {
-    //     logInProcess = new ProcessHandler<AvatarInfo>();
-    //     avatarCreationProcess = new ProcessHandler<AvatarInfo>();
-    //     worldCreationProcess = new ProcessHandler<WorldInfo>();
-    //     getAllAvatarsProcess = new ProcessHandler<List<AvatarInfo>>();
-    //     getAllWorldsProcess = new ProcessHandler<List<WorldInfo>>();
-    //     worldJoinnedProcess = new ProcessHandler<JoinInfo>();
-    // }
+    public string UserId => m_usedId;
+
+    public ProcessHandler<AvatarInfo> logInProcess;
+    public ProcessHandler<AvatarInfo> avatarCreationProcess;
+    public ProcessHandler<WorldInfo> worldCreationProcess;
+    public ProcessHandler<List<AvatarInfo>> getAllAvatarsProcess;
+    public ProcessHandler<List<WorldInfo>> getAllWorldsProcess;
+    public ProcessHandler<JoinInfo> worldJoinnedProcess;
+
+    private void Awake()
+    {
+        m_mainServerClient = GetComponent<Client>();
+        logInProcess = new ProcessHandler<AvatarInfo>();
+        avatarCreationProcess = new ProcessHandler<AvatarInfo>();
+        worldCreationProcess = new ProcessHandler<WorldInfo>();
+        getAllAvatarsProcess = new ProcessHandler<List<AvatarInfo>>();
+        getAllWorldsProcess = new ProcessHandler<List<WorldInfo>>();
+        worldJoinnedProcess = new ProcessHandler<JoinInfo>();
+    }
 
     private void Start()
     {
-        m_mainServerClient = GetComponent<Client>();
-        m_mainServerClient.onAvatarCreated += (_avatarInfo) =>
+        worldJoinnedProcess.Subscribe((_joinInfo) =>
         {
-            GameManager.Instance.AvatarCreationCompleted(_avatarInfo);
-        };
-
-        m_mainServerClient.onWorldCreated += (_worldInfo) =>
-        {
-            GameManager.Instance.WorldCreationCompleted(_worldInfo);
-        };
-
-        m_mainServerClient.onAllAvatarsRetrieved += (_avatars) =>
-        {
-            GameManager.Instance.GetAllAvatarsCompleted(_avatars);
-        };
-
-        m_mainServerClient.onAllWorldsRetrieved += (_worlds) =>
-        {
-            GameManager.Instance.GetAllWorldsCompleted(_worlds);
-        };
-
-        m_mainServerClient.onWorldJoined += (_info) =>
-        {
-            GameManager.Instance.WorldJoinnedCompleted(_info);
-        };
+            GameManager.Instance.UpdateSelectedWorld(_joinInfo.worldInfo);
+        });
     }
 
-    // private void Update()
-    // {
-    //     logInProcess.UpdateProcess();
-    //     avatarCreationProcess.UpdateProcess();
-    //     worldCreationProcess.UpdateProcess();
-    //     getAllAvatarsProcess.UpdateProcess();
-    //     getAllWorldsProcess.UpdateProcess();
-    //     worldJoinnedProcess.UpdateProcess();
-    // }
+    private void Update()
+    {
+        logInProcess.UpdateProcess();
+        avatarCreationProcess.UpdateProcess();
+        worldCreationProcess.UpdateProcess();
+        getAllAvatarsProcess.UpdateProcess();
+        getAllWorldsProcess.UpdateProcess();
+        worldJoinnedProcess.UpdateProcess();
+    }
 
-    // public void SignIn()
-    // {
-    //     logInProcess.ChangeProcessToCompleted(null);
-    // }
+    private void OnEnable()
+    {
+        m_mainServerClient.onAvatarCreated += OnAvatarCreated;
+        m_mainServerClient.onWorldCreated += OnWorldCreated;
+        m_mainServerClient.onAllAvatarsRetrieved += OnAllAvatarsRetrieved;
+        m_mainServerClient.onAllWorldsRetrieved += OnAllWorldsRetrieved;
+        m_mainServerClient.onWorldJoined += OnWorldJoinned;
+    }
 
-    // public void SignUp()
-    // {
-    //     logInProcess.ChangeProcessToCompleted(null);
-    // }
+    private void OnDisable()
+    {
+        m_mainServerClient.onAvatarCreated -= OnAvatarCreated;
+        m_mainServerClient.onWorldCreated -= OnWorldCreated;
+        m_mainServerClient.onAllAvatarsRetrieved -= OnAllAvatarsRetrieved;
+        m_mainServerClient.onAllWorldsRetrieved -= OnAllWorldsRetrieved;
+        m_mainServerClient.onWorldJoined -= OnWorldJoinned;
+    }
+
+    private void OnAvatarCreated(AvatarInfo _avatarInfo)
+    {
+        avatarCreationProcess.ChangeProcessToCompleted(_avatarInfo);
+    }
+
+    private void OnWorldCreated(WorldInfo _worldInfo)
+    {
+        worldCreationProcess.ChangeProcessToCompleted(_worldInfo);
+    }
+
+    private void OnAllAvatarsRetrieved(List<AvatarInfo> _avatars)
+    {
+        getAllAvatarsProcess.ChangeProcessToCompleted(_avatars);
+    }
+
+    private void OnAllWorldsRetrieved(List<WorldInfo> _worlds)
+    {
+        getAllWorldsProcess.ChangeProcessToCompleted(_worlds);
+    }
+
+    private void OnWorldJoinned(JoinInfo _joinInfo)
+    {
+        worldJoinnedProcess.ChangeProcessToCompleted(_joinInfo);
+    }
+
+    public void logIn()
+    {
+        logInProcess.ChangeProcessToCompleted(null);
+    }
+
+    public void SetUserId(string _userId)
+    {
+        m_usedId = _userId;
+    }
 
     public void CreateAvatar(string _avatarName, string _viewId)
     {
+        avatarCreationProcess.ChangeProcessToRunning();
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
             {Keys.INSTRUCTION, Instructions.CREATE_AVATAR},
             {Keys.AVATAR_NAME, _avatarName},
@@ -91,6 +119,7 @@ public class User : MonoBehaviour
 
     public void CreateWorld(string _worldName, string _viewId)
     {
+        worldCreationProcess.ChangeProcessToRunning();
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
             {Keys.INSTRUCTION, Instructions.CREATE_WORLD},
             {Keys.WORLD_NAME, _worldName},
@@ -103,6 +132,7 @@ public class User : MonoBehaviour
 
     public void GetAllMyAvatars()
     {
+        getAllAvatarsProcess.ChangeProcessToRunning();
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
             {Keys.INSTRUCTION, Instructions.CLIENT_ALL_AVATARS}
         };
@@ -113,6 +143,7 @@ public class User : MonoBehaviour
 
     public void GetAllWorlds()
     {
+        getAllWorldsProcess.ChangeProcessToRunning();
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
             {Keys.INSTRUCTION, Instructions.ALL_WORLDS}
         };
@@ -123,6 +154,7 @@ public class User : MonoBehaviour
 
     public void JoinWorld(string _avatarId, string _worldId)
     {
+        worldJoinnedProcess.ChangeProcessToRunning();
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
             {Keys.INSTRUCTION, Instructions.JOIN_WORLD},
             {Keys.AVATAR_ID, _avatarId},
@@ -135,6 +167,7 @@ public class User : MonoBehaviour
 
     public void GetAllAvatarsFromWorld(string _worldId)
     {
+        getAllAvatarsProcess.ChangeProcessToRunning();
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
             {Keys.INSTRUCTION, Instructions.WORLD_ALL_AVATARS},
             {Keys.WORLD_ID, _worldId}

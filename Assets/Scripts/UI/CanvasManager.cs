@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 public class CanvasManager : MonoBehaviour
@@ -13,6 +14,8 @@ public class CanvasManager : MonoBehaviour
     private GameObject m_mainMenuPanel;
     [SerializeField]
     private GameObject m_gameplayPanel;
+    [SerializeField]
+    private TMP_Text m_userIdText;
 
     private GameObject m_currentActivePanel;
     private Stack<GameObject> m_lastActivePanels;
@@ -42,25 +45,30 @@ public class CanvasManager : MonoBehaviour
         m_lastActivePanels = new Stack<GameObject>();
         m_currentActivePanel = m_authenticationPanel;
 
-        GameManager.Instance.logInProcess.Subscribe((_) =>
+        GameManager.Instance.onLoggedIn += (_) =>
         {
             ActivatePanel(m_mainMenuPanel);
-        });
+        };
 
-        GameManager.Instance.avatarCreationProcess.Subscribe((_) =>
+        GameManager.Instance.onAvatarCreated += (_) =>
         {
             ActivatePanel(m_mainMenuPanel);
-        });
+        };
 
-        GameManager.Instance.worldCreationProcess.Subscribe((_) =>
+        GameManager.Instance.onWorldCreated += (_) =>
         {
             ActivatePanel(m_mainMenuPanel);
-        });
+        };
 
-        GameManager.Instance.worldJoinnedProcess.Subscribe((_) =>
+        GameManager.Instance.onWorldJoinned += (_) =>
         {
             ActivatePanel(m_gameplayPanel);
-        });
+        };
+
+        GameManager.Instance.onSelectedUserChanged += (_user) =>
+        {
+            m_userIdText.text = _user.UserId;
+        };
     }
 
     public void OnBack()

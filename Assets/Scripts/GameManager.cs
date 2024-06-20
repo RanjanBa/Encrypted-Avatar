@@ -2,8 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System;
-using TMPro;
-using DigitalMetaverse;
+using UnityEngine.UIElements;
 
 public class GameManager : MonoBehaviour
 {
@@ -18,21 +17,27 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     private List<IconWithID> m_defaultWorlds = new List<IconWithID>();
 
+    private Transform m_usersContainer;
+
+    private readonly List<User> m_users = new List<User>();
+
     private User m_selectedUser;
-    private List<User> m_users = new List<User>();
     private AvatarInfo m_selectedAvatar;
     private WorldInfo m_selectedWorld;
 
-    public ProcessHandler<AvatarInfo> logInProcess;
-    public ProcessHandler<AvatarInfo> avatarCreationProcess;
-    public ProcessHandler<WorldInfo> worldCreationProcess;
-    public ProcessHandler<List<AvatarInfo>> getAllAvatarsProcess;
-    public ProcessHandler<List<WorldInfo>> getAllWorldsProcess;
-    public ProcessHandler<JoinInfo> worldJoinnedProcess;
+    public Action<AvatarInfo> onLoggedIn;
+    public Action<AvatarInfo> onAvatarCreated;
+    public Action<WorldInfo> onWorldCreated;
+    public Action<JoinInfo> onWorldJoinned;
+
     public Action<WorldInfo> onSelectedWorldChanged;
+    public Action<User> onSelectedUserChanged;
 
     public ReadOnlyCollection<IconWithID> DefaultAvatars => new ReadOnlyCollection<IconWithID>(m_defaultAvatars);
     public ReadOnlyCollection<IconWithID> DefaultWorlds => new ReadOnlyCollection<IconWithID>(m_defaultWorlds);
+    public ReadOnlyCollection<User> Users => new ReadOnlyCollection<User>(m_users);
+
+    public User CurrentlySelectedUser => m_selectedUser;
 
     private void Awake()
     {
@@ -49,30 +54,27 @@ public class GameManager : MonoBehaviour
         }
 
         m_instance = this;
-        logInProcess = new ProcessHandler<AvatarInfo>();
-        avatarCreationProcess = new ProcessHandler<AvatarInfo>();
-        worldCreationProcess = new ProcessHandler<WorldInfo>();
-        getAllAvatarsProcess = new ProcessHandler<List<AvatarInfo>>();
-        getAllWorldsProcess = new ProcessHandler<List<WorldInfo>>();
-        worldJoinnedProcess = new ProcessHandler<JoinInfo>();
+        m_usersContainer = new GameObject("Root").transform;
     }
 
-    private void Start()
+    private void OnLoggedIn(AvatarInfo _info)
     {
-        worldJoinnedProcess.Subscribe((_info) =>
-        {
-            UpdateSelectedWorld(_info.worldInfo);
-        });
+        onLoggedIn?.Invoke(_info);
     }
 
-    private void Update()
+    private void OnAvatarCreated(AvatarInfo _info)
     {
-        logInProcess.UpdateProcess();
-        avatarCreationProcess.UpdateProcess();
-        worldCreationProcess.UpdateProcess();
-        getAllAvatarsProcess.UpdateProcess();
-        getAllWorldsProcess.UpdateProcess();
-        worldJoinnedProcess.UpdateProcess();
+        onAvatarCreated?.Invoke(_info);
+    }
+
+    private void OnWorldCreated(WorldInfo _info)
+    {
+        onWorldCreated?.Invoke(_info);
+    }
+
+    private void OnWorldJoinned(JoinInfo _info)
+    {
+        onWorldJoinned?.Invoke(_info);
     }
 
     public Sprite GetAvatarSprite(string _viewId)
@@ -101,6 +103,28 @@ public class GameManager : MonoBehaviour
         return null;
     }
 
+    public void UpdateSelectedUser(User _user)
+    {
+        if (_user == null) return;
+
+        if (m_selectedUser != null)
+        {
+            m_selectedUser.gameObject.SetActive(false);
+            m_selectedUser.logInProcess.Unsubscribe(OnLoggedIn);
+            m_selectedUser.avatarCreationProcess.Unsubscribe(OnAvatarCreated);
+            m_selectedUser.worldCreationProcess.Unsubscribe(OnWorldCreated);
+            m_selectedUser.worldJoinnedProcess.Unsubscribe(OnWorldJoinned);
+        }
+
+        _user.gameObject.SetActive(true);
+        m_selectedUser = _user;
+        onSelectedUserChanged?.Invoke(_user);
+        m_selectedUser.logInProcess.Subscribe(OnLoggedIn);
+        m_selectedUser.avatarCreationProcess.Subscribe(OnAvatarCreated);
+        m_selectedUser.worldCreationProcess.Subscribe(OnWorldCreated);
+        m_selectedUser.worldJoinnedProcess.Subscribe(OnWorldJoinned);
+    }
+
     public void UpdateSelectedAvatar(AvatarInfo _avatarInfo)
     {
         m_selectedAvatar = _avatarInfo;
@@ -112,21 +136,27 @@ public class GameManager : MonoBehaviour
         onSelectedWorldChanged?.Invoke(_worldInfo);
     }
 
-        public void SignIn()
+    public void SignIn(User _user)
+    {
+        if (!m_users.Contains(_user))
         {
-            User _user = Instantiate(m_userPrefab);
-            m_selectedUser = _user;
-            m_users.Add(_user);
-            logInProcess.ChangeProcessToCompleted(null);
+            return;
         }
+        _user.logIn();
+        onLoggedIn?.Invoke(null); // TODO:: change during authentication implementation
+        UpdateSelectedUser(_user);
+    }
 
-        public void SignUp()
-        {
-            User _user = Instantiate(m_userPrefab);
-            m_selectedUser = _user;
-            m_users.Add(_user);
-            logInProcess.ChangeProcessToCompleted(null);
-        }
+    public void SignUp()
+    {
+        User _user = Instantiate(m_userPrefab, m_usersContainer);
+        _user.gameObject.name = "user " + (m_users.Count + 1).ToString();
+        Guid _guid = Guid.NewGuid();
+        _user.SetUserId(_guid.ToString());
+        _user.logIn();
+        UpdateSelectedUser(_user);
+        m_users.Add(_user);
+    }
 
     public void CreateAvatar(string _avatarName, string _viewId)
     {
@@ -140,7 +170,6 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Creating Avatar -> " + _avatarName + "...");
 #endif
-        avatarCreationProcess.ChangeProcessToRunning();
         m_selectedUser.CreateAvatar(_avatarName, _viewId);
     }
 
@@ -156,7 +185,6 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Creating World -> " + _worldName + "...");
 #endif
-        worldCreationProcess.ChangeProcessToRunning();
         m_selectedUser.CreateWorld(_worldName, _viewId);
     }
 
@@ -188,7 +216,6 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Joining avatar -> " + m_selectedAvatar.avatarName + ", " + "World -> " + m_selectedWorld.worldName + "...");
 #endif
-        worldJoinnedProcess.ChangeProcessToRunning();
         m_selectedUser.JoinWorld(m_selectedAvatar.avatarId, m_selectedWorld.worldId);
     }
 
@@ -204,7 +231,6 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Getting all Avatars...");
 #endif
-        getAllAvatarsProcess.ChangeProcessToRunning();
         m_selectedUser.GetAllMyAvatars();
     }
 
@@ -220,7 +246,6 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Getting all Worlds...");
 #endif
-        getAllWorldsProcess.ChangeProcessToRunning();
         m_selectedUser.GetAllWorlds();
     }
 
@@ -245,32 +270,6 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Getting all Avatars from world -> " + _worldId + "...");
 #endif
-        getAllAvatarsProcess.ChangeProcessToRunning();
         m_selectedUser.GetAllAvatarsFromWorld(_worldId);
-    }
-
-    public void AvatarCreationCompleted(AvatarInfo _info)
-    {
-        avatarCreationProcess.ChangeProcessToCompleted(_info);
-    }
-
-    public void WorldCreationCompleted(WorldInfo _info)
-    {
-        worldCreationProcess.ChangeProcessToCompleted(_info);
-    }
-
-    public void WorldJoinnedCompleted(JoinInfo _info)
-    {
-        worldJoinnedProcess.ChangeProcessToCompleted(_info);
-    }
-
-    public void GetAllAvatarsCompleted(List<AvatarInfo> _infos)
-    {
-        getAllAvatarsProcess.ChangeProcessToCompleted(_infos);
-    }
-
-    public void GetAllWorldsCompleted(List<WorldInfo> _infos)
-    {
-        getAllWorldsProcess.ChangeProcessToCompleted(_infos);
     }
 }

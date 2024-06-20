@@ -5,7 +5,6 @@ using System.Threading;
 using UnityEngine;
 using System.Collections.Generic;
 using Newtonsoft.Json;
-using UnityEngine.InputSystem;
 
 public class Client : MonoBehaviour
 {
@@ -29,6 +28,8 @@ public class Client : MonoBehaviour
     public Action<List<WorldInfo>> onAllWorldsRetrieved;
     public Action<JoinInfo> onWorldJoined;
 
+    // public bool IsConnected => m_client != null && m_client.Connected;
+
     private void Start()
     {
         m_gameObjectName = gameObject.name;
@@ -40,31 +41,6 @@ public class Client : MonoBehaviour
         m_client?.Close();
         m_client?.Dispose();
         m_receiverThread?.Abort();
-    }
-
-    private void ConnectToServer()
-    {
-        try
-        {
-            m_client = new TcpClient(m_ipAddress, m_port);
-            m_stream = m_client.GetStream();
-#if UNITY_EDITOR
-            Debug.Log("Connected to the main server...");
-#endif
-            onConnectedWithServer?.Invoke();
-
-            m_receiverThread = new Thread(new ThreadStart(ListeningServerForMsg))
-            {
-                IsBackground = true
-            };
-            m_receiverThread.Start();
-        }
-        catch (SocketException e)
-        {
-#if UNITY_EDITOR
-            Debug.LogError("SocketException : " + e.ToString());
-#endif
-        }
     }
 
     private void ListeningServerForMsg()
@@ -260,6 +236,31 @@ public class Client : MonoBehaviour
         {
 #if UNITY_EDITOR
             Debug.LogWarning("Json deserializatio error : " + e.ToString());
+#endif
+        }
+    }
+
+    public void ConnectToServer()
+    {
+        try
+        {
+            m_client = new TcpClient(m_ipAddress, m_port);
+            m_stream = m_client.GetStream();
+#if UNITY_EDITOR
+            Debug.Log("Connected to the main server...");
+#endif
+            onConnectedWithServer?.Invoke();
+
+            m_receiverThread = new Thread(new ThreadStart(ListeningServerForMsg))
+            {
+                IsBackground = true
+            };
+            m_receiverThread.Start();
+        }
+        catch (SocketException e)
+        {
+#if UNITY_EDITOR
+            Debug.LogError("SocketException : " + e.ToString());
 #endif
         }
     }

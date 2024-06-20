@@ -23,27 +23,44 @@ public class SelectionPanel : MonoBehaviour
     private void OnEnable()
     {
         DestroyContents();
+
+        if (GameManager.Instance.CurrentlySelectedUser == null)
+        {
+#if UNITY_EDITOR
+            Debug.Log("No user is selected. Select User First.");
+#endif
+            return;
+        }
+
         if (m_selectionType == SelectionType.Avatar)
         {
-            GameManager.Instance.getAllAvatarsProcess.Subscribe(OnAllAvatarsRetrieved);
+            GameManager.Instance.CurrentlySelectedUser.getAllAvatarsProcess.Subscribe(OnAllAvatarsRetrieved);
             GameManager.Instance.GetAllMyAvatars();
         }
         else
         {
-            GameManager.Instance.getAllWorldsProcess.Subscribe(OnAllWorldsRetrieved);
+            GameManager.Instance.CurrentlySelectedUser.getAllWorldsProcess.Subscribe(OnAllWorldsRetrieved);
             GameManager.Instance.GetAllWorlds();
         }
     }
 
     private void OnDisable()
     {
+        if (GameManager.Instance.CurrentlySelectedUser == null)
+        {
+#if UNITY_EDITOR
+            Debug.Log("No user is selected.");
+#endif
+            return;
+        }
+
         if (m_selectionType == SelectionType.Avatar)
         {
-            GameManager.Instance.getAllAvatarsProcess.Unsubscribe(OnAllAvatarsRetrieved);
+            GameManager.Instance.CurrentlySelectedUser.getAllAvatarsProcess.Unsubscribe(OnAllAvatarsRetrieved);
         }
         else
         {
-            GameManager.Instance.getAllWorldsProcess.Unsubscribe(OnAllWorldsRetrieved);
+            GameManager.Instance.CurrentlySelectedUser.getAllWorldsProcess.Unsubscribe(OnAllWorldsRetrieved);
         }
     }
 

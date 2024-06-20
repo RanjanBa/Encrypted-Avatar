@@ -53,22 +53,34 @@ public class AvatarSelectionPanel : MonoBehaviour
     private void OnEnable()
     {
         DestroyContents();
+
+        if (GameManager.Instance.CurrentlySelectedUser == null)
+        {
 #if UNITY_EDITOR
-        Debug.Log("Avatar Selection Panel Subscribed.");
+            Debug.Log("No user is selected. Select User First.");
 #endif
-        GameManager.Instance.getAllAvatarsProcess.Subscribe(OnAvatarsRetrieved);
+            return;
+        }
+        GameManager.Instance.CurrentlySelectedUser.getAllAvatarsProcess.Subscribe(OnAvatarsRetrieved);
         StartCoroutine(GetAvatars());
+    }
+
+    private void OnDisable()
+    {
+        if (GameManager.Instance.CurrentlySelectedUser == null)
+        {
+#if UNITY_EDITOR
+            Debug.Log("No user is selected.");
+#endif
+            return;
+        }
+        GameManager.Instance.CurrentlySelectedUser.getAllAvatarsProcess.Unsubscribe(OnAvatarsRetrieved);
     }
 
     private IEnumerator GetAvatars()
     {
         yield return new WaitForSeconds(0);
         GameManager.Instance.GetAllAvatarsFromSelectedWorld();
-    }
-
-    private void OnDisable()
-    {
-        GameManager.Instance.getAllAvatarsProcess.Unsubscribe(OnAvatarsRetrieved);
     }
 
     private void OnAvatarsRetrieved(List<AvatarInfo> _avatars)
