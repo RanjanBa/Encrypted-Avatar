@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -22,11 +23,14 @@ public class AvatarSelectionPanel : MonoBehaviour
     [SerializeField]
     private Button m_doneBtn;
 
+    private List<Toggle> m_toggles;
+
     private CardView m_selectedCardView;
     private bool m_isLeftSelected;
 
     private void Start()
     {
+        m_toggles = GetComponentsInChildren<Toggle>().ToList();
         m_selectedCardView = null;
         m_leftToggle.onValueChanged.AddListener((_state) =>
         {
@@ -53,6 +57,30 @@ public class AvatarSelectionPanel : MonoBehaviour
     private void OnEnable()
     {
         DestroyContents();
+        if (m_toggles != null)
+        {
+            foreach (var _toggle in m_toggles)
+            {
+                _toggle.isOn = false;
+            }
+        }
+
+        if (m_gameplayUIManager.LeftChatView.AvatarInfo == null)
+        {
+            m_leftCardView.UpdateName("");
+        }
+        else
+        {
+            m_leftCardView.UpdateName(m_gameplayUIManager.LeftChatView.AvatarInfo.avatarName);
+        }
+        if (m_gameplayUIManager.RightChatView.AvatarInfo == null)
+        {
+            m_rightCardView.UpdateName("");
+        }
+        else
+        {
+            m_rightCardView.UpdateName(m_gameplayUIManager.RightChatView.AvatarInfo.avatarName);
+        }
 
         if (GameManager.Instance.CurrentlySelectedUser == null)
         {
@@ -61,6 +89,7 @@ public class AvatarSelectionPanel : MonoBehaviour
 #endif
             return;
         }
+
         GameManager.Instance.CurrentlySelectedUser.getAllAvatarsProcess.Subscribe(OnAvatarsRetrieved);
         StartCoroutine(GetAvatars());
     }

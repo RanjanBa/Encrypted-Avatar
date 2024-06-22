@@ -24,7 +24,7 @@ main_server.listen(5)
 clients : set[Client] = set()
 worldsDict : dict[str, World] = {}
 
-pk, sk = Kyber1024.keygen()
+public_key, private_key = Kyber1024.keygen()
 
 
 def getClientFromAddress(address, port) -> Client:
@@ -223,6 +223,7 @@ def worldAllAvatars(client : Client, parsedMsg : dict):
 
 def sendMessage(client : Client, parsedMsg : dict):
     print("Sending Message to Avatar")
+    print(parsedMsg)
     info : dict[str, str] = {}
     
     if not Keys.WORLD_ID.value in parsedMsg:
@@ -252,7 +253,13 @@ def sendMessage(client : Client, parsedMsg : dict):
     world_id = parsedMsg[Keys.WORLD_ID.value]
     receiver_id = parsedMsg[Keys.RECIEVER_ID.value]
     
-    if not receiver_id in worldsDict[world_id]:
+    is_receiver_found = False
+    for avatar in worldsDict[world_id].avatars:
+        if avatar.avatarID == receiver_id:
+            is_receiver_found = True
+            break
+    
+    if not is_receiver_found:
         info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
         info[Keys.MESSAGE.value] = f"No avatar {receiver_id} is present in the world {world_id}."
         msg = json.dumps(info)
@@ -270,6 +277,8 @@ def sendMessage(client : Client, parsedMsg : dict):
         return
 
     info[Keys.INSTRUCTION.value] = Instructions.SEND_MSG.value
+    info[Keys.WORLD_ID.value] = world_id
+    info[Keys.AVATAR_ID.value] = receiver_id
     info[Keys.MESSAGE.value] = parsedMsg[Keys.MESSAGE.value]
     msg = json.dumps(info)
     receiver.sendMessage(msg)
@@ -306,14 +315,16 @@ def handleClient(client_socket : socket):
     h, p = client_socket.getpeername()
     client = getClientFromAddress(h, p)
     
-    info = {}
+    info : dict[str, str] = {}
     if client != None:
         info[Keys.MESSAGE.value] = f"You {client_socket.getpeername()} are already joinned..."
         print(f"Already joinned. Number of clients joinned {len(clients)}")
     else:
         client = Client(client_socket)
-        clients.add(client)
+        info[Keys.INSTRUCTION.value] = Instructions.SENT_KEY.value
+        info[Keys.PUBLIC_KEY.value] = public_key
         info[Keys.MESSAGE.value] = f"You {client_socket.getpeername()} join newly..."
+        clients.add(client)
         print(f"After adding new client, Number of clients {len(clients)}.")
 
     try:
@@ -330,13 +341,16 @@ def handleClient(client_socket : socket):
             except KeyboardInterrupt:
                 client.close()
                 break
-            except:
-                print("Some error in receiving data...")
-                client.close()
-                break
-    except:
-        print("Some error in sending data...")
+            # except Exception as e:
+            #     print(e)
+            #     print("Some error in receiving data -> " + str(e))
+            #     client.close()
+            #     break
+    except KeyboardInterrupt:
         client.close()
+    # except Exception as e:
+    #     print("Some error in sending data -> " + str(e))
+    #     client.close()
         
     
     for av in client.avatars:

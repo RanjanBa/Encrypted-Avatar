@@ -16,9 +16,15 @@ public class CanvasManager : MonoBehaviour
     private GameObject m_gameplayPanel;
     [SerializeField]
     private TMP_Text m_userIdText;
+    [SerializeField]
+    private GameObject m_errorMsgPanel;
+    [SerializeField]
+    private TMP_Text m_errorMsgText;
 
     private GameObject m_currentActivePanel;
     private Stack<GameObject> m_lastActivePanels;
+
+    public Queue<ErrorMsg> errorMsg;
 
     private void Awake()
     {
@@ -35,6 +41,7 @@ public class CanvasManager : MonoBehaviour
         }
 
         m_instance = this;
+        errorMsg = new Queue<ErrorMsg>();
     }
 
     private void Start()
@@ -69,6 +76,28 @@ public class CanvasManager : MonoBehaviour
         {
             m_userIdText.text = _user.UserId;
         };
+    }
+
+    private void Update()
+    {
+        if (errorMsg != null && errorMsg.Count > 0)
+        {
+            m_errorMsgPanel.SetActive(true);
+            ErrorMsg _error = errorMsg.Peek();
+            if (_error.duration > 0)
+            {
+                _error.duration -= Time.deltaTime;
+                m_errorMsgText.text = _error.msg;
+            }
+            else
+            {
+                errorMsg.Dequeue();
+            }
+        }
+        else
+        {
+            m_errorMsgPanel.SetActive(false);
+        }
     }
 
     public void OnBack()

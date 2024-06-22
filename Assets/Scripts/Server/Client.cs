@@ -27,8 +27,7 @@ public class Client : MonoBehaviour
     public Action<List<AvatarInfo>> onAllAvatarsRetrieved;
     public Action<List<WorldInfo>> onAllWorldsRetrieved;
     public Action<JoinInfo> onWorldJoined;
-
-    // public bool IsConnected => m_client != null && m_client.Connected;
+    public Action<Dictionary<string, string>> onMessageRecieved;
 
     private void Start()
     {
@@ -206,15 +205,29 @@ public class Client : MonoBehaviour
                     }
                     onAllAvatarsRetrieved?.Invoke(_avatars);
                 }
-#if UNITY_EDITOR
+                else if (_msgCode == Instructions.SEND_MSG)
+                {
+                    Dictionary<string, string> _msgInfo = new Dictionary<string, string>() {
+                        {Keys.WORLD_ID, _parsedMsg[Keys.WORLD_ID]},
+                        {Keys.AVATAR_ID, _parsedMsg[Keys.AVATAR_ID]},
+                        {Keys.MESSAGE, _parsedMsg[Keys.MESSAGE]}
+                    };
+                    onMessageRecieved?.Invoke(_msgInfo);
+                }
                 else if (_msgCode == Instructions.ERROR)
                 {
+#if UNITY_EDITOR
                     Debug.Log("Error occurs in server side...");
+#endif
                     if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
                     {
+#if UNITY_EDITOR
                         Debug.Log(_msg);
+#endif
+                        CanvasManager.Instance.errorMsg.Enqueue(new ErrorMsg(_msg, 1f));
                     }
                 }
+#if UNITY_EDITOR
                 else
                 {
                     Debug.Log("Message is sent without proper instruction -> " + _msgCode);

@@ -57,3 +57,15 @@ public class JoinInfo
     public AvatarInfo avatarInfo;
     public WorldInfo worldInfo;
 }
+
+public class ErrorMsg
+{
+    public string msg;
+    public float duration;
+
+    public ErrorMsg(string _msg, float _duration)
+    {
+        msg = _msg;
+        duration = _duration;
+    }
+}

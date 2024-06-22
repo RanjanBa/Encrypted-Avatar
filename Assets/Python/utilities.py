@@ -9,6 +9,7 @@ class Instructions(Enum):
     WORLD_ALL_AVATARS = "world_all_avatars";
     SEND_MSG = "send_msg"
     SENT_KEY = "sent_key"
+    GET_KEY = "get_key"
     ALL_WORLDS = "all_worlds"
     ENCRYPT_MSG = "encrypt_msg"
     DECRYPT_MSG = "decrypt_msg"

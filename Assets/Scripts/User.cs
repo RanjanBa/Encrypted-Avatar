@@ -22,6 +22,7 @@ public class User : MonoBehaviour
     public ProcessHandler<List<AvatarInfo>> getAllAvatarsProcess;
     public ProcessHandler<List<WorldInfo>> getAllWorldsProcess;
     public ProcessHandler<JoinInfo> worldJoinnedProcess;
+    public ProcessHandler<Dictionary<string, string>> messageReceivedProcess;
 
     private void Awake()
     {
@@ -32,6 +33,7 @@ public class User : MonoBehaviour
         getAllAvatarsProcess = new ProcessHandler<List<AvatarInfo>>();
         getAllWorldsProcess = new ProcessHandler<List<WorldInfo>>();
         worldJoinnedProcess = new ProcessHandler<JoinInfo>();
+        messageReceivedProcess = new ProcessHandler<Dictionary<string, string>>();
     }
 
     private void Start()
@@ -50,24 +52,32 @@ public class User : MonoBehaviour
         getAllAvatarsProcess.UpdateProcess();
         getAllWorldsProcess.UpdateProcess();
         worldJoinnedProcess.UpdateProcess();
+        messageReceivedProcess.UpdateProcess();
+        messageReceivedProcess.ChangeProcessToRunning();
     }
 
     private void OnEnable()
     {
+        messageReceivedProcess.Subscribe(GameManager.Instance.OnMessageReceived);
+
         m_mainServerClient.onAvatarCreated += OnAvatarCreated;
         m_mainServerClient.onWorldCreated += OnWorldCreated;
         m_mainServerClient.onAllAvatarsRetrieved += OnAllAvatarsRetrieved;
         m_mainServerClient.onAllWorldsRetrieved += OnAllWorldsRetrieved;
         m_mainServerClient.onWorldJoined += OnWorldJoinned;
+        m_mainServerClient.onMessageRecieved += OnMessageReceived;
     }
 
     private void OnDisable()
     {
+        messageReceivedProcess.Unsubscribe(GameManager.Instance.OnMessageReceived);
+
         m_mainServerClient.onAvatarCreated -= OnAvatarCreated;
         m_mainServerClient.onWorldCreated -= OnWorldCreated;
         m_mainServerClient.onAllAvatarsRetrieved -= OnAllAvatarsRetrieved;
         m_mainServerClient.onAllWorldsRetrieved -= OnAllWorldsRetrieved;
         m_mainServerClient.onWorldJoined -= OnWorldJoinned;
+        m_mainServerClient.onMessageRecieved -= OnMessageReceived;
     }
 
     private void OnAvatarCreated(AvatarInfo _avatarInfo)
@@ -93,6 +103,11 @@ public class User : MonoBehaviour
     private void OnWorldJoinned(JoinInfo _joinInfo)
     {
         worldJoinnedProcess.ChangeProcessToCompleted(_joinInfo);
+    }
+
+    private void OnMessageReceived(Dictionary<string, string> _msgInfo)
+    {
+        messageReceivedProcess.ChangeProcessToCompleted(_msgInfo);
     }
 
     public void logIn()
@@ -177,10 +192,10 @@ public class User : MonoBehaviour
         m_mainServerClient.SendMessageToServer(_msg);
     }
 
-    public void SendMessage(string _sendMsg, string _worldId, string _receiverId)
+    public void SendMessageToReceiver(string _worldId, string _receiverId, string _sendMsg)
     {
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
-            {Keys.INSTRUCTION, Instructions.WORLD_ALL_AVATARS},
+            {Keys.INSTRUCTION, Instructions.SEND_MSG},
             {Keys.WORLD_ID, _worldId},
             {Keys.RECIEVER_ID, _receiverId},
             {Keys.MESSAGE, _sendMsg}

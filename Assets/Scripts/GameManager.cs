@@ -2,7 +2,6 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System;
-using UnityEngine.UIElements;
 
 public class GameManager : MonoBehaviour
 {
@@ -32,6 +31,7 @@ public class GameManager : MonoBehaviour
 
     public Action<WorldInfo> onSelectedWorldChanged;
     public Action<User> onSelectedUserChanged;
+    public Action<Dictionary<string, string>> onMessageReceived;
 
     public ReadOnlyCollection<IconWithID> DefaultAvatars => new ReadOnlyCollection<IconWithID>(m_defaultAvatars);
     public ReadOnlyCollection<IconWithID> DefaultWorlds => new ReadOnlyCollection<IconWithID>(m_defaultWorlds);
@@ -75,6 +75,25 @@ public class GameManager : MonoBehaviour
     private void OnWorldJoinned(JoinInfo _info)
     {
         onWorldJoinned?.Invoke(_info);
+    }
+
+    public void OnMessageReceived(Dictionary<string, string> _msgInfo)
+    {
+        if (m_selectedWorld == null)
+        {
+#if UNITY_EDITOR
+            Debug.Log("Currently none of the world is selected.");
+#endif
+            return;
+        }
+        if (_msgInfo[Keys.WORLD_ID] != m_selectedWorld.worldId)
+        {
+#if UNITY_EDITOR
+            Debug.Log("Received world id and currently selected world id is not equal");
+#endif
+            return;
+        }
+        onMessageReceived?.Invoke(_msgInfo);
     }
 
     public Sprite GetAvatarSprite(string _viewId)
@@ -271,5 +290,27 @@ public class GameManager : MonoBehaviour
         Debug.Log("Getting all Avatars from world -> " + _worldId + "...");
 #endif
         m_selectedUser.GetAllAvatarsFromWorld(_worldId);
+    }
+
+    public void SendMessageToReceiver(string _receiverId, string _msg)
+    {
+        if (m_selectedUser == null)
+        {
+#if UNITY_EDITOR
+            Debug.Log("No User is selected. First SignIn or SignUp.");
+#endif
+            return;
+        }
+        if (m_selectedWorld == null)
+        {
+#if UNITY_EDITOR
+            Debug.Log("You have't select any world...");
+#endif
+            return;
+        }
+#if UNITY_EDITOR
+        Debug.Log("Sending msg to receiver -> " + _receiverId + " within the world -> " + m_selectedWorld.worldId + "...");
+#endif
+        m_selectedUser.SendMessageToReceiver(m_selectedWorld.worldId, _receiverId, _msg);
     }
 }
