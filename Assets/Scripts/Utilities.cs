@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 public static class Instructions
@@ -10,12 +9,14 @@ public static class Instructions
     public const string JOIN_WORLD = "join_world";
     public const string WORLD_ALL_AVATARS = "world_all_avatars";
     public const string SEND_MSG = "send_msg";
-    public const string SENT_KEY = "sent_key";
     public const string ALL_WORLDS = "all_worlds";
+    public const string SERVER_KEY = "server_key";
+    public const string CLIENT_KEY = "client_key";
+    public const string AVATAR_KEY = "avatar_key";
+    public const string ERROR = "error";
+    public const string GENERATE_KEY = "generate_key";
     public const string ENCRYPT_MSG = "encrypt_msg";
     public const string DECRYPT_MSG = "decrypt_msg";
-    public const string GENERATE_KEY = "generate_key";
-    public const string ERROR = "error";
 }
 
 public static class Keys
@@ -67,5 +68,13 @@ public class ErrorMsg
     {
         msg = _msg;
         duration = _duration;
+    }
+}
+
+public static class Utility
+{
+    public static string Truncate(this string _str, int _maxChars)
+    {
+        return _str.Length <= _maxChars ? _str : _str.Substring(0, _maxChars - 3) + "...";
     }
 }

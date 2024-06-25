@@ -6,9 +6,11 @@ class Instructions(Enum):
     CLIENT_ALL_AVATARS = "client_all_avatars"
     CREATE_WORLD = "create_world"
     JOIN_WORLD = "join_world"
-    WORLD_ALL_AVATARS = "world_all_avatars";
+    WORLD_ALL_AVATARS = "world_all_avatars"
     SEND_MSG = "send_msg"
-    SENT_KEY = "sent_key"
+    SERVER_KEY = "server_key"
+    CLIENT_KEY = "client_key"
+    AVATAR_KEY = "avatar_key"
     GET_KEY = "get_key"
     ALL_WORLDS = "all_worlds"
     ENCRYPT_MSG = "encrypt_msg"

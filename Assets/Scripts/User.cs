@@ -9,10 +9,12 @@ public class User : MonoBehaviour
 {
     [SerializeField]
     private string m_usedId;
-    // private string m_privateKey;
-    // private string m_publicKey;
+
+    private string m_privateKey;
+    private string m_publicKey;
 
     private Client m_mainServerClient;
+    private LocalClient m_localServerClient;
 
     public string UserId => m_usedId;
 
@@ -27,6 +29,7 @@ public class User : MonoBehaviour
     private void Awake()
     {
         m_mainServerClient = GetComponent<Client>();
+        m_localServerClient = GetComponent<LocalClient>();
         logInProcess = new ProcessHandler<AvatarInfo>();
         avatarCreationProcess = new ProcessHandler<AvatarInfo>();
         worldCreationProcess = new ProcessHandler<WorldInfo>();
@@ -42,6 +45,15 @@ public class User : MonoBehaviour
         {
             GameManager.Instance.UpdateSelectedWorld(_joinInfo.worldInfo);
         });
+
+        m_localServerClient.onKeyGenerated += (pk, sk) =>
+        {
+            m_publicKey = pk;
+            m_privateKey = sk;
+            SendPublicKeyToServer(m_publicKey);
+        };
+
+        GenerateKey();
     }
 
     private void Update()
@@ -192,6 +204,17 @@ public class User : MonoBehaviour
         m_mainServerClient.SendMessageToServer(_msg);
     }
 
+    public void SendPublicKeyToServer(string _key)
+    {
+        Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
+            {Keys.INSTRUCTION, Instructions.CLIENT_KEY},
+            {Keys.PUBLIC_KEY, _key}
+        };
+
+        string _msg = JsonConvert.SerializeObject(_msgDict);
+        m_mainServerClient.SendMessageToServer(_msg);
+    }
+
     public void SendMessageToReceiver(string _worldId, string _receiverId, string _sendMsg)
     {
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
@@ -203,5 +226,75 @@ public class User : MonoBehaviour
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
         m_mainServerClient.SendMessageToServer(_msg);
+    }
+
+    public void GenerateKey()
+    {
+        Dictionary<string, string> _msgDict = new Dictionary<string, string>
+        {
+            { Keys.INSTRUCTION, Instructions.GENERATE_KEY }
+        };
+
+        string _msg = JsonConvert.SerializeObject(_msgDict);
+#if UNITY_EDITOR
+        Debug.Log(_msg);
+#endif
+        m_localServerClient.SendMessageToServer(_msg);
+    }
+
+    public void EncryptMsg(string _message)
+    {
+        if (m_publicKey == null || m_publicKey.Length == 0)
+        {
+#if UNITY_EDITOR
+            Debug.Log("Valid public key is not present.");
+#endif
+            return;
+        }
+
+#if UNITY_EDITOR
+        Debug.Log("Encrypting Msg...");
+#endif
+        Dictionary<string, string> _msgDict = new Dictionary<string, string>
+        {
+            { Keys.INSTRUCTION, Instructions.ENCRYPT_MSG },
+            { Keys.PUBLIC_KEY, m_publicKey },
+            { Keys.MESSAGE, _message }
+        };
+
+        string _msg = JsonConvert.SerializeObject(_msgDict);
+#if UNITY_EDITOR
+        Debug.Log(_msg);
+#endif
+        m_localServerClient.SendMessageToServer(_msg);
+    }
+
+    public void DecryptMsg(Dictionary<string, string> _encryptedMsg)
+    {
+        if (m_privateKey == null || m_privateKey.Length == 0)
+        {
+#if UNITY_EDITOR
+            Debug.Log("Valid public key is not present.");
+#endif
+            return;
+        }
+#if UNITY_EDITOR
+        Debug.Log("Decrypting Msg...");
+#endif
+        Dictionary<string, string> _msgDict = new Dictionary<string, string> {
+            {Keys.INSTRUCTION, Instructions.DECRYPT_MSG },
+            {Keys.PRIVATE_KEY, m_privateKey}
+        };
+
+        foreach (KeyValuePair<string, string> item in _encryptedMsg)
+        {
+            _msgDict.Add(item.Key, item.Value);
+        }
+
+        string _msg = JsonConvert.SerializeObject(_msgDict);
+#if UNITY_EDITOR
+        Debug.Log(_msg);
+#endif
+        m_localServerClient.SendMessageToServer(_msg);
     }
 }

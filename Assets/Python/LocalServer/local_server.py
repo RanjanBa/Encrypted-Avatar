@@ -22,22 +22,13 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((host, port))
 server.listen(5)
 
-
 clients : List[Client] = []
-
-
-def broadcast(msg : str):
-    for client in clients:
-        client.sendMessage(msg)
 
 
 def handleClients(client : Client):
     info = {}
-    info[Keys.MESSAGE.value] = f"You are connected to the server {server.getsockname()} successfully.";
+    info[Keys.MESSAGE.value] = f"You are connected to the local server {server.getsockname()} successfully.";
     client.sendMessage(json.dumps(info))
-    info[Keys.MESSAGE.value] = f"New client is connected to the server."
-    broadcast(json.dumps(info))
-    
     clients.append(client)
     print(f"Number of clients {len(clients)}")
 
@@ -72,7 +63,22 @@ def parseMessage(client : Client, msg : str):
 
     msg_code = parsedMsg[Keys.INSTRUCTION.value]
 
-    if msg_code == Instructions.ENCRYPT_MSG.value:
+    if msg_code == Instructions.GENERATE_KEY.value:
+        print("Generating and Sending Public and Secret Key...")
+        # pk, sk = rsa_encrypt_decrypt.getKey()
+        pk, sk = kyber_encrypt_decrypt.getKey()
+        
+        public_key = bytes.hex(pk)
+        secret_key = bytes.hex(sk)
+
+        info : dict[str, str] = {}
+        info[Keys.INSTRUCTION.value] = Instructions.GENERATE_KEY.value
+        info[Keys.PUBLIC_KEY.value] = public_key
+        info[Keys.PRIVATE_KEY.value] = secret_key
+        msg = json.dumps(info)
+        client.sendMessage(msg)
+        print("Public and Secret key Sent...")
+    elif msg_code == Instructions.ENCRYPT_MSG.value:
         public_key = parsedMsg[Keys.PUBLIC_KEY.value]
         if public_key == "":
             print("Invalid public key.")
@@ -117,21 +123,6 @@ def parseMessage(client : Client, msg : str):
         info[Keys.MESSAGE.value] = decrypted_msg
         client.sendMessage(json.dumps(info))
         print("Decrypted Msg Sent...")
-    elif msg_code == Instructions.GENERATE_KEY.value:
-        print("Generating and Sending Public and Secret Key...")
-        # pk, sk = rsa_encrypt_decrypt.getKey()
-        pk, sk = kyber_encrypt_decrypt.getKey()
-        
-        public_key = bytes.hex(pk)
-        secret_key = bytes.hex(sk)
-
-        info : dict[str, str] = {}
-        info[Keys.INSTRUCTION.value] = Instructions.GENERATE_KEY.value
-        info[Keys.PUBLIC_KEY.value] = public_key
-        info[Keys.PRIVATE_KEY.value] = secret_key
-        msg = json.dumps(info)
-        client.sendMessage(msg)
-        print("Public and Secret key Sent...")
     else:
         print(f"Message is sent without proper instruction -> {msg_code}")
 

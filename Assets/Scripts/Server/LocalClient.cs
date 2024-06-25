@@ -18,13 +18,12 @@ public class LocalClient : MonoBehaviour
     private TcpClient m_localClient;
     private NetworkStream m_stream;
     private Thread m_receiveThread;
+    private string m_gameObjectName;
 
     public Action<string, string> onKeyGenerated;
     public Action<Dictionary<string, string>> onEncryptedMsgReceived;
     public Action<string> onDecryptedMsgReceived;
     public Action onConnectedWithServer;
-
-    private string m_gameObjectName;
 
     private void Start()
     {
@@ -247,7 +246,7 @@ public class LocalClient : MonoBehaviour
         if (m_localClient == null || !m_localClient.Connected)
         {
 #if UNITY_EDITOR
-            Debug.LogError("Client not connected to server.");
+            Debug.LogError("Local client is not connected to local server.");
 #endif
             return;
         }
@@ -257,70 +256,5 @@ public class LocalClient : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log(m_gameObjectName + " sent message to server : " + _message);
 #endif
-    }
-
-    public void EncryptMsg(string _message, string _publicKey)
-    {
-        if (_publicKey == null || _publicKey.Length == 0)
-        {
-#if UNITY_EDITOR
-            Debug.Log("Valid public key is not present.");
-#endif
-            return;
-        }
-
-        if (m_localClient == null || !m_localClient.Connected)
-        {
-#if UNITY_EDITOR
-            Debug.Log("Local Client is connected to the local server.");
-#endif
-            return;
-        }
-
-#if UNITY_EDITOR
-        Debug.Log("Encrypting Msg...");
-#endif
-        Dictionary<string, string> _msgDict = new Dictionary<string, string>
-        {
-            { Keys.INSTRUCTION, Instructions.ENCRYPT_MSG },
-            { Keys.PUBLIC_KEY, _publicKey },
-            { Keys.MESSAGE, _message }
-        };
-
-        string _msg = JsonConvert.SerializeObject(_msgDict);
-#if UNITY_EDITOR
-        Debug.Log(_msg);
-#endif
-        SendMessageToServer(_msg);
-    }
-
-    public void DecryptMsg(Dictionary<string, string> _encryptedMsg, string _privateKey)
-    {
-        if (m_localClient == null || !m_localClient.Connected)
-        {
-#if UNITY_EDITOR
-            Debug.Log("Local Client is connected to the local server.");
-#endif
-            return;
-        }
-
-#if UNITY_EDITOR
-        Debug.Log("Decrypting Msg...");
-#endif
-        Dictionary<string, string> _msgDict = new Dictionary<string, string> {
-            {Keys.INSTRUCTION, Instructions.DECRYPT_MSG },
-            {Keys.PRIVATE_KEY, _privateKey}
-        };
-
-        foreach (KeyValuePair<string, string> item in _encryptedMsg)
-        {
-            _msgDict.Add(item.Key, item.Value);
-        }
-
-        string _msg = JsonConvert.SerializeObject(_msgDict);
-#if UNITY_EDITOR
-        Debug.Log(_msg);
-#endif
-        SendMessageToServer(_msg);
     }
 }

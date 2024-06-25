@@ -18,16 +18,13 @@ print(client.getsockname())
 encoded_msg = client.recv(1024)
 print(encoded_msg.decode())
 
-encoded_msg = client.recv(1024)
-print(encoded_msg.decode())
-
 is_running = True
 
-info = {}
-info[Keys.INSTRUCTION.value] = Instructions.SENT_KEY.value
-info[Keys.PUBLIC_KEY.value] = "waidiwhauihduiwhad"
+# info = {}
+# info[Keys.INSTRUCTION.value] = Instructions.SENT_KEY.value
+# info[Keys.PUBLIC_KEY.value] = "waidiwhauihduiwhad"
 
-client.send(json.dumps(info).encode())
+# client.send(json.dumps(info).encode())
 
 def ReceiveThread():
     while True:

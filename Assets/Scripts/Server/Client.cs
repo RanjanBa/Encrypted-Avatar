@@ -19,6 +19,8 @@ public class Client : MonoBehaviour
     private NetworkStream m_stream;
     private Thread m_receiverThread;
 
+    private string m_serverPublicKey;
+
     private string m_gameObjectName;
 
     public Action onConnectedWithServer;
@@ -93,7 +95,18 @@ public class Client : MonoBehaviour
             Dictionary<string, string> _parsedMsg = JsonConvert.DeserializeObject<Dictionary<string, string>>(_message);
             if (_parsedMsg.TryGetValue(Keys.INSTRUCTION, out string _msgCode))
             {
-                if (_msgCode == Instructions.CREATE_AVATAR)
+                if (_msgCode == Instructions.SERVER_KEY)
+                {
+                    m_serverPublicKey = _parsedMsg[Keys.PUBLIC_KEY];
+#if UNITY_EDITOR
+                    Debug.Log("Server Public Key -> " + m_serverPublicKey.Truncate(50));
+                    if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
+                    {
+                        Debug.Log(_msg);
+                    }
+#endif
+                }
+                else if (_msgCode == Instructions.CREATE_AVATAR)
                 {
                     AvatarInfo _avatarInfo = new AvatarInfo()
                     {

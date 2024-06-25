@@ -292,8 +292,11 @@ def parseMessage(msg : str, client : Client):
         return
     print("Parsing Message Complete")
     msg_code = parsedMsg[Keys.INSTRUCTION.value]
-
-    if msg_code == Instructions.CREATE_AVATAR.value:
+    
+    if msg_code == Instructions.CLIENT_KEY.value:
+        pk = parsedMsg[Keys.PUBLIC_KEY.value]
+        client.publicKey = pk
+    elif msg_code == Instructions.CREATE_AVATAR.value:
         createAvatar(client, parsedMsg)
     elif msg_code == Instructions.CLIENT_ALL_AVATARS.value:
         clientAllAvatars(client, parsedMsg)
@@ -317,18 +320,21 @@ def handleClient(client_socket : socket):
     
     info : dict[str, str] = {}
     if client != None:
+        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
         info[Keys.MESSAGE.value] = f"You {client_socket.getpeername()} are already joinned..."
         print(f"Already joinned. Number of clients joinned {len(clients)}")
     else:
         client = Client(client_socket)
-        info[Keys.INSTRUCTION.value] = Instructions.SENT_KEY.value
-        info[Keys.PUBLIC_KEY.value] = public_key
+        info[Keys.INSTRUCTION.value] = Instructions.SERVER_KEY.value
+        info[Keys.PUBLIC_KEY.value] = bytes.hex(public_key)
         info[Keys.MESSAGE.value] = f"You {client_socket.getpeername()} join newly..."
         clients.add(client)
         print(f"After adding new client, Number of clients {len(clients)}.")
 
     try:
-        client.sendMessage(json.dumps(info))
+        print(info)
+        msg = json.dumps(info)
+        client.sendMessage(msg)
         while True:
             try:
                 msg = client.receiveMessage(DATA_BUFFER_SIZE)
