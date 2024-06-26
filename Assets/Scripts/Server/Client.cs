@@ -19,11 +19,10 @@ public class Client : MonoBehaviour
     private NetworkStream m_stream;
     private Thread m_receiverThread;
 
-    private string m_serverPublicKey;
-
     private string m_gameObjectName;
 
     public Action onConnectedWithServer;
+    public Action<string> onServerKeyReceived;
     public Action<AvatarInfo> onAvatarCreated;
     public Action<WorldInfo> onWorldCreated;
     public Action<List<AvatarInfo>> onAllAvatarsRetrieved;
@@ -97,9 +96,10 @@ public class Client : MonoBehaviour
             {
                 if (_msgCode == Instructions.SERVER_KEY)
                 {
-                    m_serverPublicKey = _parsedMsg[Keys.PUBLIC_KEY];
+                    string _serverKey = _parsedMsg[Keys.PUBLIC_KEY];
+                    onServerKeyReceived?.Invoke(_serverKey);
 #if UNITY_EDITOR
-                    Debug.Log("Server Public Key -> " + m_serverPublicKey.Truncate(50));
+                    Debug.Log("Server Public Key -> " + _serverKey.Truncate(50));
                     if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
                     {
                         Debug.Log(_msg);

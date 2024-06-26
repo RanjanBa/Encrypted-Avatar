@@ -285,7 +285,7 @@ def sendMessage(client : Client, parsedMsg : dict):
 
 
 def parseMessage(msg : str, client : Client):
-    parsedMsg : dict = json.loads(msg)
+    parsedMsg : dict[str, str] = json.loads(msg)
     
     if not Keys.INSTRUCTION.value in parsedMsg:
         print("No instruction is given with the msg...")
@@ -296,6 +296,7 @@ def parseMessage(msg : str, client : Client):
     if msg_code == Instructions.CLIENT_KEY.value:
         pk = parsedMsg[Keys.PUBLIC_KEY.value]
         client.publicKey = pk
+        print("client public key -> " + pk)
     elif msg_code == Instructions.CREATE_AVATAR.value:
         createAvatar(client, parsedMsg)
     elif msg_code == Instructions.CLIENT_ALL_AVATARS.value:

@@ -5,8 +5,6 @@ sys.path.append('./Kyber')
 from Crypto.Cipher import AES
 from kyber import Kyber1024
 
-# Kyber512.set_drbg_seed(bytes.fromhex('061550234D158C5EC95595FE04EF7A25767F2E24CC2BC479D09D86DC9ABCFDE7056A8C266F9EF97ED08541DBD2E1FFA1'))
-
 
 def getKey():
     public_key, private_key = Kyber1024.keygen()
@@ -23,7 +21,7 @@ def encrypt(msg : str, public_key : bytes):
 
     return (cipher_encrypt, tag, ciphertext, cipher_aes.nonce)
     
-def decrypt(private_key : bytes, cipher_encrypt, tag, ciphertext, nonce):
+def decrypt(private_key : bytes, cipher_encrypt : bytes, tag : bytes, ciphertext : bytes, nonce : bytes):
     shared_key = Kyber1024.dec(cipher_encrypt, private_key)
     # Decrypt the data with the AES session key
     cipher_aes = AES.new(shared_key, AES.MODE_EAX, nonce)

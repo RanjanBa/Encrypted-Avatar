@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using UnityEngine;
-using UnityEngine.Rendering.Universal;
 
 [RequireComponent(typeof(Client))]
 public class User : MonoBehaviour
@@ -12,6 +10,7 @@ public class User : MonoBehaviour
 
     private string m_privateKey;
     private string m_publicKey;
+    private string m_serverPublicKey;
 
     private Client m_mainServerClient;
     private LocalClient m_localServerClient;
@@ -46,11 +45,28 @@ public class User : MonoBehaviour
             GameManager.Instance.UpdateSelectedWorld(_joinInfo.worldInfo);
         });
 
+        m_mainServerClient.onServerKeyReceived += (_key) =>
+        {
+            m_serverPublicKey = _key;
+        };
+
+
         m_localServerClient.onKeyGenerated += (pk, sk) =>
         {
             m_publicKey = pk;
             m_privateKey = sk;
             SendPublicKeyToServer(m_publicKey);
+        };
+
+        m_localServerClient.onEncryptedMsgReceived += (_info) =>
+        {
+            string _msg = JsonConvert.SerializeObject(_info);
+            m_mainServerClient.SendMessageToServer(_msg);
+        };
+
+        m_localServerClient.onDecryptedMsgReceived += (_info) =>
+        {
+            Debug.Log("Decrypted msg received...");
         };
 
         GenerateKey();
@@ -122,7 +138,63 @@ public class User : MonoBehaviour
         messageReceivedProcess.ChangeProcessToCompleted(_msgInfo);
     }
 
-    public void logIn()
+    private void EncryptMsg(string _message, string _publicKey)
+    {
+        if (_publicKey == null || _publicKey.Length == 0)
+        {
+#if UNITY_EDITOR
+            Debug.Log("Valid public key is not present.");
+#endif
+            return;
+        }
+
+#if UNITY_EDITOR
+        Debug.Log("Encrypting Msg...");
+#endif
+        Dictionary<string, string> _msgDict = new Dictionary<string, string>
+        {
+            { Keys.INSTRUCTION, Instructions.ENCRYPT_MSG },
+            { Keys.PUBLIC_KEY, _publicKey },
+            { Keys.MESSAGE, _message }
+        };
+
+        string _msg = JsonConvert.SerializeObject(_msgDict);
+#if UNITY_EDITOR
+        Debug.Log(_msg);
+#endif
+        m_localServerClient.SendMessageToServer(_msg);
+    }
+
+    private void DecryptMsg(Dictionary<string, string> _encryptedMsg)
+    {
+        if (m_privateKey == null || m_privateKey.Length == 0)
+        {
+#if UNITY_EDITOR
+            Debug.Log("Valid public key is not present.");
+#endif
+            return;
+        }
+#if UNITY_EDITOR
+        Debug.Log("Decrypting Msg...");
+#endif
+        Dictionary<string, string> _msgDict = new Dictionary<string, string> {
+            {Keys.INSTRUCTION, Instructions.DECRYPT_MSG },
+            {Keys.PRIVATE_KEY, m_privateKey}
+        };
+
+        foreach (KeyValuePair<string, string> item in _encryptedMsg)
+        {
+            _msgDict.Add(item.Key, item.Value);
+        }
+
+        string _msg = JsonConvert.SerializeObject(_msgDict);
+#if UNITY_EDITOR
+        Debug.Log(_msg);
+#endif
+        m_localServerClient.SendMessageToServer(_msg);
+    }
+
+    public void LogIn()
     {
         logInProcess.ChangeProcessToCompleted(null);
     }
@@ -142,6 +214,7 @@ public class User : MonoBehaviour
         };
         string _msg = JsonConvert.SerializeObject(_msgDict);
         m_mainServerClient.SendMessageToServer(_msg);
+        // EncryptMsg(_msg, m_serverPublicKey);
     }
 
     public void CreateWorld(string _worldName, string _viewId)
@@ -234,62 +307,6 @@ public class User : MonoBehaviour
         {
             { Keys.INSTRUCTION, Instructions.GENERATE_KEY }
         };
-
-        string _msg = JsonConvert.SerializeObject(_msgDict);
-#if UNITY_EDITOR
-        Debug.Log(_msg);
-#endif
-        m_localServerClient.SendMessageToServer(_msg);
-    }
-
-    public void EncryptMsg(string _message)
-    {
-        if (m_publicKey == null || m_publicKey.Length == 0)
-        {
-#if UNITY_EDITOR
-            Debug.Log("Valid public key is not present.");
-#endif
-            return;
-        }
-
-#if UNITY_EDITOR
-        Debug.Log("Encrypting Msg...");
-#endif
-        Dictionary<string, string> _msgDict = new Dictionary<string, string>
-        {
-            { Keys.INSTRUCTION, Instructions.ENCRYPT_MSG },
-            { Keys.PUBLIC_KEY, m_publicKey },
-            { Keys.MESSAGE, _message }
-        };
-
-        string _msg = JsonConvert.SerializeObject(_msgDict);
-#if UNITY_EDITOR
-        Debug.Log(_msg);
-#endif
-        m_localServerClient.SendMessageToServer(_msg);
-    }
-
-    public void DecryptMsg(Dictionary<string, string> _encryptedMsg)
-    {
-        if (m_privateKey == null || m_privateKey.Length == 0)
-        {
-#if UNITY_EDITOR
-            Debug.Log("Valid public key is not present.");
-#endif
-            return;
-        }
-#if UNITY_EDITOR
-        Debug.Log("Decrypting Msg...");
-#endif
-        Dictionary<string, string> _msgDict = new Dictionary<string, string> {
-            {Keys.INSTRUCTION, Instructions.DECRYPT_MSG },
-            {Keys.PRIVATE_KEY, m_privateKey}
-        };
-
-        foreach (KeyValuePair<string, string> item in _encryptedMsg)
-        {
-            _msgDict.Add(item.Key, item.Value);
-        }
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
 #if UNITY_EDITOR

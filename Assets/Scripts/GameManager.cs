@@ -161,7 +161,7 @@ public class GameManager : MonoBehaviour
         {
             return;
         }
-        _user.logIn();
+        _user.LogIn();
         onLoggedIn?.Invoke(null); // TODO:: change during authentication implementation
         UpdateSelectedUser(_user);
     }
@@ -172,7 +172,7 @@ public class GameManager : MonoBehaviour
         _user.gameObject.name = "user " + (m_users.Count + 1).ToString();
         Guid _guid = Guid.NewGuid();
         _user.SetUserId(_guid.ToString());
-        _user.logIn();
+        _user.LogIn();
         UpdateSelectedUser(_user);
         m_users.Add(_user);
     }
