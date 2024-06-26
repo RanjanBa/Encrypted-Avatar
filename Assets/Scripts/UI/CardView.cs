@@ -12,6 +12,14 @@ public class CardView : MonoBehaviour
     public void UpdateIcon(Sprite _icon)
     {
         m_cardIcon.sprite = _icon;
+        if (_icon == null)
+        {
+            m_cardIcon.gameObject.SetActive(false);
+        }
+        else
+        {
+            m_cardIcon.gameObject.SetActive(true);
+        }
     }
 
     public void UpdateName(string _name)

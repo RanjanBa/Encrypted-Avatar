@@ -68,18 +68,22 @@ public class AvatarSelectionPanel : MonoBehaviour
         if (m_gameplayUIManager.LeftChatView.AvatarInfo == null)
         {
             m_leftCardView.UpdateName("");
+            m_leftCardView.UpdateIcon(null);
         }
         else
         {
             m_leftCardView.UpdateName(m_gameplayUIManager.LeftChatView.AvatarInfo.avatarName);
+            m_leftCardView.UpdateIcon(GameManager.Instance.GetAvatarSprite(m_gameplayUIManager.LeftChatView.AvatarInfo.avatarViewId));
         }
         if (m_gameplayUIManager.RightChatView.AvatarInfo == null)
         {
             m_rightCardView.UpdateName("");
+            m_rightCardView.UpdateIcon(null);
         }
         else
         {
             m_rightCardView.UpdateName(m_gameplayUIManager.RightChatView.AvatarInfo.avatarName);
+            m_rightCardView.UpdateIcon(GameManager.Instance.GetAvatarSprite(m_gameplayUIManager.RightChatView.AvatarInfo.avatarViewId));
         }
 
         if (GameManager.Instance.CurrentlySelectedUser == null)
