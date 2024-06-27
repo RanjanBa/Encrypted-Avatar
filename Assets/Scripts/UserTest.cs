@@ -1,10 +1,18 @@
+using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using UnityEngine;
 
-[RequireComponent(typeof(Client))]
-public class User : MonoBehaviour
+public class UserTest : MonoBehaviour
 {
+    [SerializeField]
+    private string m_serverIpAddress = "127.0.0.1";
+    [SerializeField]
+    private int m_serverPort = 12000;
+    [SerializeField]
+    private string m_localIpAddress = "127.0.0.1";
+    [SerializeField]
+    private int m_localPort = 9000;
     [SerializeField]
     private string m_usedId;
 
@@ -12,8 +20,8 @@ public class User : MonoBehaviour
     private string m_publicKey;
     private string m_serverPublicKey;
 
-    private Client m_mainServerClient;
-    private LocalClient m_localServerClient;
+    private ClientTest m_mainServerClient;
+    private LocalClientTest m_localServerClient;
 
     public string UserId => m_usedId;
 
@@ -27,8 +35,8 @@ public class User : MonoBehaviour
 
     private void Awake()
     {
-        m_mainServerClient = GetComponent<Client>();
-        m_localServerClient = GetComponent<LocalClient>();
+        m_mainServerClient = GetComponent<ClientTest>();
+        m_localServerClient = GetComponent<LocalClientTest>();
         logInProcess = new ProcessHandler<AvatarInfo>();
         avatarCreationProcess = new ProcessHandler<AvatarInfo>();
         worldCreationProcess = new ProcessHandler<WorldInfo>();
@@ -45,10 +53,11 @@ public class User : MonoBehaviour
             GameManager.Instance.UpdateSelectedWorld(_joinInfo.worldInfo);
         });
 
-        m_mainServerClient.onMessageReceived += (_msg) =>
+        m_mainServerClient.onServerKeyReceived += (_key) =>
         {
-            ParseMessage(_msg);
+            m_serverPublicKey = _key;
         };
+
 
         m_localServerClient.onKeyGenerated += (pk, sk) =>
         {
@@ -59,14 +68,13 @@ public class User : MonoBehaviour
 
         m_localServerClient.onEncryptedMsgReceived += (_info) =>
         {
-            _info[Keys.MSG_TYPE] = MessageType.ENCRYPTED_TEXT;
             string _msg = JsonConvert.SerializeObject(_info);
             m_mainServerClient.SendMessageToServer(_msg);
         };
 
         m_localServerClient.onDecryptedMsgReceived += (_info) =>
         {
-            ParseMessage(_info);
+            Debug.Log("Decrypted msg received...");
         };
 
         GenerateKey();
@@ -87,11 +95,25 @@ public class User : MonoBehaviour
     private void OnEnable()
     {
         messageReceivedProcess.Subscribe(GameManager.Instance.OnMessageReceived);
+
+        m_mainServerClient.onAvatarCreated += OnAvatarCreated;
+        m_mainServerClient.onWorldCreated += OnWorldCreated;
+        m_mainServerClient.onAllAvatarsRetrieved += OnAllAvatarsRetrieved;
+        m_mainServerClient.onAllWorldsRetrieved += OnAllWorldsRetrieved;
+        m_mainServerClient.onWorldJoined += OnWorldJoinned;
+        m_mainServerClient.onMessageRecieved += OnMessageReceived;
     }
 
     private void OnDisable()
     {
         messageReceivedProcess.Unsubscribe(GameManager.Instance.OnMessageReceived);
+
+        m_mainServerClient.onAvatarCreated -= OnAvatarCreated;
+        m_mainServerClient.onWorldCreated -= OnWorldCreated;
+        m_mainServerClient.onAllAvatarsRetrieved -= OnAllAvatarsRetrieved;
+        m_mainServerClient.onAllWorldsRetrieved -= OnAllWorldsRetrieved;
+        m_mainServerClient.onWorldJoined -= OnWorldJoinned;
+        m_mainServerClient.onMessageRecieved -= OnMessageReceived;
     }
 
     private void OnAvatarCreated(AvatarInfo _avatarInfo)
@@ -122,210 +144,6 @@ public class User : MonoBehaviour
     private void OnMessageReceived(Dictionary<string, string> _msgInfo)
     {
         messageReceivedProcess.ChangeProcessToCompleted(_msgInfo);
-    }
-
-    private void ParseMessage(string _message)
-    {
-        if (_message.Length == 0)
-        {
-            return;
-        }
-
-        try
-        {
-            Dictionary<string, string> _parsedMsg = JsonConvert.DeserializeObject<Dictionary<string, string>>(_message);
-            if (_parsedMsg.TryGetValue(Keys.MSG_TYPE, out string _msgType))
-            {
-                if (_msgType == MessageType.ENCRYPTED_TEXT)
-                {
-                    DecryptMsg(_parsedMsg);
-                    return;
-                }
-            }
-
-            if (_parsedMsg.TryGetValue(Keys.INSTRUCTION, out string _msgCode))
-            {
-                DecodeInstruction(_msgCode, _parsedMsg);
-            }
-#if UNITY_EDITOR
-            else
-            {
-                Debug.Log("No instruction is given with the msg...");
-                if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
-                {
-                    Debug.Log(_msg);
-                }
-            }
-#endif
-        }
-        catch (JsonReaderException e)
-        {
-#if UNITY_EDITOR
-            Debug.LogWarning("Json deserializatio error : " + e.ToString());
-#endif
-        }
-    }
-
-    private void DecodeInstruction(string _msgCode, Dictionary<string, string> _parsedMsg)
-    {
-        if (_msgCode == Instructions.SERVER_KEY)
-        {
-            m_serverPublicKey = _parsedMsg[Keys.PUBLIC_KEY];
-#if UNITY_EDITOR
-            Debug.Log("Server Public Key -> " + m_serverPublicKey.Truncate(50));
-            if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
-            {
-                Debug.Log(_msg);
-            }
-#endif
-        }
-        else if (_msgCode == Instructions.CREATE_AVATAR)
-        {
-            AvatarInfo _avatarInfo = new AvatarInfo()
-            {
-                avatarId = _parsedMsg[Keys.AVATAR_ID],
-                avatarName = _parsedMsg[Keys.AVATAR_NAME]
-            };
-            OnAvatarCreated(_avatarInfo);
-            // onAvatarCreated?.Invoke(_avatarInfo);
-        }
-        else if (_msgCode == Instructions.CREATE_WORLD)
-        {
-            WorldInfo _worldInfo = new WorldInfo()
-            {
-                worldId = _parsedMsg[Keys.WORLD_ID],
-                worldName = _parsedMsg[Keys.WORLD_NAME]
-            };
-            OnWorldCreated(_worldInfo);
-            // onWorldCreated?.Invoke(_worldInfo);
-        }
-        else if (_msgCode == Instructions.CLIENT_ALL_AVATARS)
-        {
-            List<AvatarInfo> _avatars = new List<AvatarInfo>();
-            int idx = 0;
-            while (true)
-            {
-                if (_parsedMsg.TryGetValue(idx.ToString(), out string _sentence))
-                {
-                    string[] strs = _sentence.Split(',');
-                    AvatarInfo _info = new AvatarInfo()
-                    {
-                        avatarId = strs[0],
-                        avatarName = strs[1],
-                        avatarViewId = strs[2]
-                    };
-                    _avatars.Add(_info);
-                    idx++;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            OnAllAvatarsRetrieved(_avatars);
-            // onAllAvatarsRetrieved?.Invoke(_avatars);
-        }
-        else if (_msgCode == Instructions.ALL_WORLDS)
-        {
-            List<WorldInfo> _worlds = new List<WorldInfo>();
-            int idx = 0;
-            while (true)
-            {
-                if (_parsedMsg.TryGetValue(idx.ToString(), out string _sentence))
-                {
-                    string[] strs = _sentence.Split(',');
-                    WorldInfo _info = new WorldInfo()
-                    {
-                        worldId = strs[0],
-                        worldName = strs[1],
-                        worldViewId = strs[2]
-                    };
-                    _worlds.Add(_info);
-                    idx++;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            OnAllWorldsRetrieved(_worlds);
-            // onAllWorldsRetrieved?.Invoke(_worlds);
-        }
-        else if (_msgCode == Instructions.JOIN_WORLD)
-        {
-            JoinInfo _joinInfo = new JoinInfo()
-            {
-                worldInfo = new WorldInfo()
-                {
-                    worldId = _parsedMsg[Keys.WORLD_ID],
-                    worldName = _parsedMsg[Keys.WORLD_NAME],
-                    worldViewId = _parsedMsg[Keys.WORLD_VIEW_ID]
-                },
-                avatarInfo = new AvatarInfo()
-                {
-                    avatarId = _parsedMsg[Keys.AVATAR_ID],
-                    avatarName = _parsedMsg[Keys.AVATAR_NAME],
-                    avatarViewId = _parsedMsg[Keys.AVATAR_VIEW_ID]
-                }
-            };
-            OnWorldJoinned(_joinInfo);
-            // onWorldJoined?.Invoke(_joinInfo);
-        }
-        else if (_msgCode == Instructions.WORLD_ALL_AVATARS)
-        {
-            List<AvatarInfo> _avatars = new List<AvatarInfo>();
-            int idx = 0;
-            while (true)
-            {
-                if (_parsedMsg.TryGetValue(idx.ToString(), out string _sentence))
-                {
-                    string[] strs = _sentence.Split(',');
-                    AvatarInfo _info = new AvatarInfo()
-                    {
-                        avatarId = strs[0],
-                        avatarName = strs[1],
-                        avatarViewId = strs[2]
-                    };
-                    _avatars.Add(_info);
-                    idx++;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            OnAllAvatarsRetrieved(_avatars);
-            // onAllAvatarsRetrieved?.Invoke(_avatars);
-        }
-        else if (_msgCode == Instructions.SEND_MSG)
-        {
-            Dictionary<string, string> _msgInfo = new Dictionary<string, string>() {
-                        {Keys.WORLD_ID, _parsedMsg[Keys.WORLD_ID]},
-                        {Keys.AVATAR_ID, _parsedMsg[Keys.AVATAR_ID]},
-                        {Keys.MESSAGE, _parsedMsg[Keys.MESSAGE]}
-                    };
-            OnMessageReceived(_msgInfo);
-            // onMessageRecieved?.Invoke(_msgInfo);
-        }
-        else if (_msgCode == Instructions.ERROR)
-        {
-#if UNITY_EDITOR
-            Debug.Log("Error occurs in server side...");
-#endif
-            if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
-            {
-#if UNITY_EDITOR
-                Debug.Log(_msg);
-#endif
-                CanvasManager.Instance.errorMsg.Enqueue(new ErrorMsg(_msg, 1f));
-            }
-        }
-#if UNITY_EDITOR
-        else
-        {
-            Debug.Log("Message is sent without proper instruction -> " + _msgCode);
-        }
-#endif
     }
 
     private void EncryptMsg(string _message, string _publicKey)
@@ -394,7 +212,7 @@ public class User : MonoBehaviour
         m_usedId = _userId;
     }
 
-    public void CreateAvatar(string _avatarName, string _viewId)
+    public void CreateAvatar(string _avatarName, string _viewId, Action<AvatarInfo> _onAvatarCreationcompleted)
     {
         avatarCreationProcess.ChangeProcessToRunning();
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
@@ -403,8 +221,8 @@ public class User : MonoBehaviour
             {Keys.AVATAR_VIEW_ID, _viewId}
         };
         string _msg = JsonConvert.SerializeObject(_msgDict);
-        // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        m_mainServerClient.SendMessageToServer(_msg);
+        // EncryptMsg(_msg, m_serverPublicKey);
     }
 
     public void CreateWorld(string _worldName, string _viewId)
@@ -417,8 +235,7 @@ public class User : MonoBehaviour
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
-        // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        m_mainServerClient.SendMessageToServer(_msg);
     }
 
     public void GetAllMyAvatars()
@@ -429,8 +246,7 @@ public class User : MonoBehaviour
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
-        // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        m_mainServerClient.SendMessageToServer(_msg);
     }
 
     public void GetAllWorlds()
@@ -441,8 +257,7 @@ public class User : MonoBehaviour
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
-        // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        m_mainServerClient.SendMessageToServer(_msg);
     }
 
     public void JoinWorld(string _avatarId, string _worldId)
@@ -455,8 +270,7 @@ public class User : MonoBehaviour
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
-        // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        m_mainServerClient.SendMessageToServer(_msg);
     }
 
     public void GetAllAvatarsFromWorld(string _worldId)
@@ -468,8 +282,7 @@ public class User : MonoBehaviour
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
-        // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        m_mainServerClient.SendMessageToServer(_msg);
     }
 
     public void SendPublicKeyToServer(string _key)
@@ -480,8 +293,7 @@ public class User : MonoBehaviour
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
-        // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        m_mainServerClient.SendMessageToServer(_msg);
     }
 
     public void SendMessageToReceiver(string _worldId, string _receiverId, string _sendMsg)
@@ -494,8 +306,7 @@ public class User : MonoBehaviour
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
-        // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        m_mainServerClient.SendMessageToServer(_msg);
     }
 
     public void GenerateKey()

@@ -19,6 +19,7 @@ class Instructions(Enum):
     ERROR = "error"
     
 class Keys(Enum):
+    MSG_TYPE = "msg_type"
     INSTRUCTION = "instruction"
     MESSAGE = "msg"
     WORLD_ID = "world_id"
@@ -34,3 +35,7 @@ class Keys(Enum):
     TAG = "tag"
     CIPHER_TEXT = "cipher_text"
     NONCE = "nonce"
+    
+class MessageType(Enum):
+    PLAIN_TEXT = "plain_text"
+    ENCRYPTED_TEXT = "encrypted_text"

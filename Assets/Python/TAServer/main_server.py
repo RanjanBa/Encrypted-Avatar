@@ -8,8 +8,9 @@ from threading import Thread
 from client import Client
 from world import World
 from avatar import Avatar
-from utilities import Instructions, Keys
+from utilities import Instructions, Keys, MessageType
 from kyber import Kyber1024
+import kyber_encrypt_decrypt 
 import json
 import uuid
 
@@ -45,6 +46,69 @@ def getClientFromAvatarId(avatar_id) -> Client:
     return None
 
 
+def DecodeInstruction(client : Client, parsedMsg : dict):
+    if not Keys.INSTRUCTION.value in parsedMsg:
+        print("No instruction is given with the msg...")
+        return
+    print("Parsing Message Complete")
+    msg_code = parsedMsg[Keys.INSTRUCTION.value]
+    
+    if msg_code == Instructions.CLIENT_KEY.value:
+        pk = parsedMsg[Keys.PUBLIC_KEY.value]
+        client.publicKey = pk
+        print("client public key -> " + pk)
+    elif msg_code == Instructions.CREATE_AVATAR.value:
+        createAvatar(client, parsedMsg)
+    elif msg_code == Instructions.CLIENT_ALL_AVATARS.value:
+        clientAllAvatars(client, parsedMsg)
+    elif msg_code == Instructions.CREATE_WORLD.value:
+        createNewWorld(client, parsedMsg)
+    elif msg_code == Instructions.JOIN_WORLD.value:
+        joinWorld(client, parsedMsg)
+    elif msg_code == Instructions.ALL_WORLDS.value:
+        allWorlds(client, parsedMsg)
+    elif msg_code == Instructions.WORLD_ALL_AVATARS.value:
+        worldAllAvatars(client, parsedMsg)
+    elif msg_code == Instructions.SEND_MSG.value:
+        sendMessage(client, parsedMsg)
+    else:
+        print(f"Message is sent without proper instruction -> {msg_code}")
+
+
+def decryptMsg(client : Client, parsedMsg : dict):
+    print("Decrypting msg...")
+    enc_session_key = parsedMsg[Keys.ENC_SESSION_KEY.value]
+    tag = parsedMsg[Keys.TAG.value]
+    cipher_text = parsedMsg[Keys.CIPHER_TEXT.value]
+    nonce = parsedMsg[Keys.NONCE.value]
+
+    if private_key == "" or enc_session_key == "" or tag == "" or cipher_text == "" or nonce == "":
+        print("Invalid private key or enc_session_key or tag or ciphertext or nonce!")
+        return
+
+    enc_session_key = bytes.fromhex(enc_session_key)
+    tag = bytes.fromhex(tag)
+    cipher_text = bytes.fromhex(cipher_text)
+    nonce = bytes.fromhex(nonce)
+    
+    decrypted_msg = kyber_encrypt_decrypt.decrypt(private_key, enc_session_key, tag, cipher_text, nonce)
+    print("decrypted msg...")
+    print(decrypted_msg)
+    parsedMsg : dict[str, str] = json.loads(decrypted_msg)
+    DecodeInstruction(client, parsedMsg)
+
+
+def encryptMsg(msg : str, key : str) -> dict[str, str]:
+    enc_session_key, tag, cipher_text, nonce = kyber_encrypt_decrypt.encrypt(msg, bytes.fromhex(key))  
+    info : dict[str, str] = {}
+    info[Keys.MSG_TYPE.value] = MessageType.ENCRYPTED_TEXT.value
+    info[Keys.ENC_SESSION_KEY.value] = bytes.hex(enc_session_key)
+    info[Keys.TAG.value] = bytes.hex(tag)
+    info[Keys.CIPHER_TEXT.value] = bytes.hex(cipher_text)
+    info[Keys.NONCE.value] = bytes.hex(nonce)
+    return info
+    
+
 def createAvatar(client : Client, parsedMsg : dict):
     print("Creating New Avatar")
     info : dict[str, str] = {}
@@ -74,6 +138,9 @@ def createAvatar(client : Client, parsedMsg : dict):
         print(f"Avatar can't be created with id {avatar_id}. Client already have that avatar")
     
     msg = json.dumps(info)
+    print(msg)
+    encrypted_msg = encryptMsg(msg, client.publicKey)
+    msg = json.dumps(encrypted_msg)
     client.sendMessage(msg)
 
 
@@ -109,6 +176,9 @@ def createNewWorld(client : Client, parsedMsg : dict):
     info[Keys.WORLD_NAME.value] = world_name
     info[Keys.WORLD_VIEW_ID.value] = world_view_id
     msg = json.dumps(info)
+    print(msg)
+    encrypted_msg = encryptMsg(msg, client.publicKey)
+    msg = json.dumps(encrypted_msg)
     client.sendMessage(msg)
 
 
@@ -162,6 +232,9 @@ def joinWorld(client : Client, parsedMsg : dict):
     info[Keys.AVATAR_VIEW_ID.value] = avatar.viewId
     
     msg = json.dumps(info)
+    print(msg)
+    encrypted_msg = encryptMsg(msg, client.publicKey)
+    msg = json.dumps(encrypted_msg)
     client.sendMessage(msg)
 
 
@@ -175,6 +248,9 @@ def allWorlds(client : Client, parsedMsg : dict):
         info[str(idx)] = worldsDict[k].worldId + "," + worldsDict[k].worldName + "," + worldsDict[k].ViewId
         idx += 1
     msg = json.dumps(info)
+    print(msg)
+    encrypted_msg = encryptMsg(msg, client.publicKey)
+    msg = json.dumps(encrypted_msg)
     client.sendMessage(msg)
 
 
@@ -186,6 +262,9 @@ def clientAllAvatars(client : Client, parsedMsg : dict):
         info[str(idx)] = avatar.avatarID + "," + avatar.avatarName + "," + avatar.viewId
     
     msg = json.dumps(info)
+    print(msg)
+    encrypted_msg = encryptMsg(msg, client.publicKey)
+    msg = json.dumps(encrypted_msg)
     client.sendMessage(msg)
 
 
@@ -218,6 +297,9 @@ def worldAllAvatars(client : Client, parsedMsg : dict):
         info[str(idx)] = avatar.avatarID + "," + avatar.avatarName + "," + avatar.viewId
     
     msg = json.dumps(info)
+    print(msg)
+    encrypted_msg = encryptMsg(msg, client.publicKey)
+    msg = json.dumps(encrypted_msg)
     client.sendMessage(msg)
 
 
@@ -281,39 +363,24 @@ def sendMessage(client : Client, parsedMsg : dict):
     info[Keys.AVATAR_ID.value] = receiver_id
     info[Keys.MESSAGE.value] = parsedMsg[Keys.MESSAGE.value]
     msg = json.dumps(info)
-    receiver.sendMessage(msg)
+    print(msg)
+    encrypted_msg = encryptMsg(msg, client.publicKey)
+    msg = json.dumps(encrypted_msg)
+    client.sendMessage(msg)
 
 
-def parseMessage(msg : str, client : Client):
+def parseMessage(client : Client, msg : str):
     parsedMsg : dict[str, str] = json.loads(msg)
-    
-    if not Keys.INSTRUCTION.value in parsedMsg:
-        print("No instruction is given with the msg...")
-        return
-    print("Parsing Message Complete")
-    msg_code = parsedMsg[Keys.INSTRUCTION.value]
-    
-    if msg_code == Instructions.CLIENT_KEY.value:
-        pk = parsedMsg[Keys.PUBLIC_KEY.value]
-        client.publicKey = pk
-        print("client public key -> " + pk)
-    elif msg_code == Instructions.CREATE_AVATAR.value:
-        createAvatar(client, parsedMsg)
-    elif msg_code == Instructions.CLIENT_ALL_AVATARS.value:
-        clientAllAvatars(client, parsedMsg)
-    elif msg_code == Instructions.CREATE_WORLD.value:
-        createNewWorld(client, parsedMsg)
-    elif msg_code == Instructions.JOIN_WORLD.value:
-        joinWorld(client, parsedMsg)
-    elif msg_code == Instructions.ALL_WORLDS.value:
-        allWorlds(client, parsedMsg)
-    elif msg_code == Instructions.WORLD_ALL_AVATARS.value:
-        worldAllAvatars(client, parsedMsg)
-    elif msg_code == Instructions.SEND_MSG.value:
-        sendMessage(client, parsedMsg)
+    if not Keys.MSG_TYPE.value in parsedMsg:
+        print("No msg type is given with the msg...")
+        DecodeInstruction(client, parsedMsg)
     else:
-        print(f"Message is sent without proper instruction -> {msg_code}")
-
+        msg_type = parsedMsg[Keys.MSG_TYPE.value]
+        if msg_type == MessageType.ENCRYPTED_TEXT.value:
+            decryptMsg(client, parsedMsg)
+        else:
+            DecodeInstruction(client, parsedMsg)
+    
 
 def handleClient(client_socket : socket):
     h, p = client_socket.getpeername()
@@ -344,7 +411,7 @@ def handleClient(client_socket : socket):
                     client.close()
                     break
                 print(msg)
-                parseMessage(msg, client)
+                parseMessage(client, msg)
             except KeyboardInterrupt:
                 client.close()
                 break

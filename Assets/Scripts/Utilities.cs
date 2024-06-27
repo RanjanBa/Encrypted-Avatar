@@ -21,6 +21,7 @@ public static class Instructions
 
 public static class Keys
 {
+    public const string MSG_TYPE = "msg_type";
     public const string INSTRUCTION = "instruction";
     public const string MESSAGE = "msg";
     public const string WORLD_ID = "world_id";
@@ -36,6 +37,12 @@ public static class Keys
     public const string TAG = "tag";
     public const string CIPHER_TEXT = "cipher_text";
     public const string NONCE = "nonce";
+}
+
+public static class MessageType
+{
+    public const string PLAIN_TEXT = "plain_text";
+    public const string ENCRYPTED_TEXT = "encrypted_text";
 }
 
 public enum ProcessStatus
