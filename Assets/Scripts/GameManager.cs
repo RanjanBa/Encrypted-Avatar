@@ -155,7 +155,7 @@ public class GameManager : MonoBehaviour
         onSelectedWorldChanged?.Invoke(_worldInfo);
     }
 
-    public void SignIn(User _user)
+    public void LogIn(User _user)
     {
         if (!m_users.Contains(_user))
         {
@@ -166,7 +166,7 @@ public class GameManager : MonoBehaviour
         UpdateSelectedUser(_user);
     }
 
-    public void SignUp()
+    public void RegisterUp()
     {
         User _user = Instantiate(m_userPrefab, m_usersContainer);
         _user.gameObject.name = "user " + (m_users.Count + 1).ToString();

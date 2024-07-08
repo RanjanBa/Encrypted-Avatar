@@ -3,6 +3,8 @@ using UnityEngine;
 
 public static class Instructions
 {
+    public const string REGISTER_USER = "register_user";
+    public const string LOGIN_USER = "login_user";
     public const string CREATE_AVATAR = "create_avatar";
     public const string CLIENT_ALL_AVATARS = "client_all_avatars";
     public const string CREATE_WORLD = "create_world";

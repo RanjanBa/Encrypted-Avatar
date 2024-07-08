@@ -6,11 +6,18 @@ using UnityEngine;
 public class User : MonoBehaviour
 {
     [SerializeField]
-    private string m_usedId;
+    private string m_serverIpAddress = "127.0.0.1";
+    [SerializeField]
+    private int m_serverPort = 12000;
+    [SerializeField]
+    private string m_localIpAddress = "127.0.0.1";
+    [SerializeField]
+    private int m_localPort = 9000;
 
     private string m_privateKey;
     private string m_publicKey;
     private string m_serverPublicKey;
+    private string m_usedId;
 
     private Client m_mainServerClient;
     private LocalClient m_localServerClient;
@@ -29,6 +36,7 @@ public class User : MonoBehaviour
     {
         m_mainServerClient = GetComponent<Client>();
         m_localServerClient = GetComponent<LocalClient>();
+
         logInProcess = new ProcessHandler<AvatarInfo>();
         avatarCreationProcess = new ProcessHandler<AvatarInfo>();
         worldCreationProcess = new ProcessHandler<WorldInfo>();

@@ -15,6 +15,8 @@ public class CanvasManager : MonoBehaviour
     [SerializeField]
     private GameObject m_gameplayPanel;
     [SerializeField]
+    private GameObject m_userIdView;
+    [SerializeField]
     private TMP_Text m_userIdText;
     [SerializeField]
     private GameObject m_errorMsgPanel;
@@ -49,11 +51,13 @@ public class CanvasManager : MonoBehaviour
         m_authenticationPanel.SetActive(true);
         m_mainMenuPanel.SetActive(false);
         m_gameplayPanel.SetActive(false);
+        m_userIdView.SetActive(false);
         m_lastActivePanels = new Stack<GameObject>();
         m_currentActivePanel = m_authenticationPanel;
 
         GameManager.Instance.onLoggedIn += (_) =>
         {
+            m_userIdView.SetActive(true);
             ActivatePanel(m_mainMenuPanel);
         };
 
@@ -117,6 +121,7 @@ public class CanvasManager : MonoBehaviour
 
     public void ActivatePanel(GameObject _panel)
     {
+        if (_panel.activeSelf) return;
         m_currentActivePanel.SetActive(false);
         if (_panel == null)
         {

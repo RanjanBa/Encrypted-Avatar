@@ -2,6 +2,8 @@ from enum import Enum
 
 
 class Instructions(Enum):
+    REGISTER_USER = "register_user"
+    LOGIN_USER = "login_user"
     CREATE_AVATAR = "create_avatar"
     CLIENT_ALL_AVATARS = "client_all_avatars"
     CREATE_WORLD = "create_world"

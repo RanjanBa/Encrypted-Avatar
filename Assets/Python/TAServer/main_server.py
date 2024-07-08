@@ -109,6 +109,10 @@ def encryptMsg(msg : str, key : str) -> dict[str, str]:
     return info
     
 
+def registerNewUser(client: Client, parsedMsg : dict):
+    pass
+
+
 def createAvatar(client : Client, parsedMsg : dict):
     print("Creating New Avatar")
     info : dict[str, str] = {}
@@ -235,7 +239,11 @@ def joinWorld(client : Client, parsedMsg : dict):
     print(msg)
     encrypted_msg = encryptMsg(msg, client.publicKey)
     msg = json.dumps(encrypted_msg)
-    client.sendMessage(msg)
+    
+    for ava in worldsDict[world_id].avatars:
+        cl = getClientFromAvatarId(ava.avatarID)
+        cl.sendMessage(msg)
+    # client.sendMessage(msg)
 
 
 def allWorlds(client : Client, parsedMsg : dict):

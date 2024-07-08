@@ -17,7 +17,7 @@ public class UsersSelectionPanel : MonoBehaviour
             Button _btn = InstantiateBtn(_user.gameObject.name);
             _btn.onClick.AddListener(() =>
             {
-                GameManager.Instance.SignIn(_user);
+                GameManager.Instance.LogIn(_user);
             });
         }
     }
