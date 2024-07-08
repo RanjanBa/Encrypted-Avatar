@@ -166,7 +166,7 @@ public class GameManager : MonoBehaviour
         UpdateSelectedUser(_user);
     }
 
-    public void RegisterUp()
+    public void RegisterNewUser()
     {
         User _user = Instantiate(m_userPrefab, m_usersContainer);
         _user.gameObject.name = "user " + (m_users.Count + 1).ToString();

@@ -25,6 +25,7 @@ public class User : MonoBehaviour
     public string UserId => m_usedId;
 
     public ProcessHandler<AvatarInfo> logInProcess;
+    public ProcessHandler<string> registrationProcess;
     public ProcessHandler<AvatarInfo> avatarCreationProcess;
     public ProcessHandler<WorldInfo> worldCreationProcess;
     public ProcessHandler<List<AvatarInfo>> getAllAvatarsProcess;

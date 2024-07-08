@@ -37,6 +37,8 @@ class Keys(Enum):
     TAG = "tag"
     CIPHER_TEXT = "cipher_text"
     NONCE = "nonce"
+    REGISTRATION_INFO = "registration_info"
+    USER_ID = "user_id"
     
 class MessageType(Enum):
     PLAIN_TEXT = "plain_text"

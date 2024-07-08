@@ -7,15 +7,19 @@ public class AuthenticationPanel : MonoBehaviour
     private Button m_logInBtn;
     [SerializeField]
     private Button m_registerBtn;
+    [SerializeField]
+    private GameObject m_registerPanel;
 
     private void Start()
     {
         m_logInBtn.onClick.AddListener(() =>
         {
+            // GameManager.Instance.LogIn();
         });
         m_registerBtn.onClick.AddListener(() =>
         {
-            GameManager.Instance.RegisterUp();
+            // GameManager.Instance.RegisterNewUser();
+            CanvasManager.Instance.ActivatePanel(m_registerPanel);
         });
     }
 }
