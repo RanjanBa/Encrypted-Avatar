@@ -26,7 +26,7 @@ public class CanvasManager : MonoBehaviour
     private GameObject m_currentActivePanel;
     private Stack<GameObject> m_lastActivePanels;
 
-    public Queue<ErrorMsg> errorMsg;
+    public Queue<ErrorMsg> errorMessagesQueue;
 
     private void Awake()
     {
@@ -43,7 +43,7 @@ public class CanvasManager : MonoBehaviour
         }
 
         m_instance = this;
-        errorMsg = new Queue<ErrorMsg>();
+        errorMessagesQueue = new Queue<ErrorMsg>();
     }
 
     private void Start()
@@ -84,10 +84,10 @@ public class CanvasManager : MonoBehaviour
 
     private void Update()
     {
-        if (errorMsg != null && errorMsg.Count > 0)
+        if (errorMessagesQueue != null && errorMessagesQueue.Count > 0)
         {
             m_errorMsgPanel.SetActive(true);
-            ErrorMsg _error = errorMsg.Peek();
+            ErrorMsg _error = errorMessagesQueue.Peek();
             if (_error.duration > 0)
             {
                 _error.duration -= Time.deltaTime;
@@ -95,7 +95,7 @@ public class CanvasManager : MonoBehaviour
             }
             else
             {
-                errorMsg.Dequeue();
+                errorMessagesQueue.Dequeue();
             }
         }
         else

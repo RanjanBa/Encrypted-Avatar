@@ -16,7 +16,7 @@ public class MainMenuPanel : MonoBehaviour
     [SerializeField]
     private GameObject m_worldCreationPanel;
     [SerializeField]
-    private GameObject m_avatarSelectionPanel;
+    private GameObject m_joinWorldPanel;
     [SerializeField]
     private GameObject m_selectWorldPanel;
 
@@ -32,7 +32,7 @@ public class MainMenuPanel : MonoBehaviour
         });
         m_joinWorldBtn.onClick.AddListener(() =>
         {
-            CanvasManager.Instance.ActivatePanel(m_avatarSelectionPanel);
+            CanvasManager.Instance.ActivatePanel(m_joinWorldPanel);
         });
         m_selectWorldBtn.onClick.AddListener(() =>
         {

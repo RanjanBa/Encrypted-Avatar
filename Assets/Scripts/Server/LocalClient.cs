@@ -6,49 +6,24 @@ using UnityEngine;
 using System.Threading;
 using Newtonsoft.Json;
 
-public class LocalClient : MonoBehaviour
+public class LocalClient
 {
     private const int m_DATA_BUFFER_SIZE = 10240;
-
-    [SerializeField]
-    private string m_ipAddress = "127.0.0.1";
-    [SerializeField]
-    private int m_port = 9000;
 
     private TcpClient m_localClient;
     private NetworkStream m_stream;
     private Thread m_receiveThread;
-    private string m_gameObjectName;
 
+    public Action onConnectedWithServer;
     public Action<string, string> onKeyGenerated;
     public Action<Dictionary<string, string>> onEncryptedMsgReceived;
     public Action<string> onDecryptedMsgReceived;
-    public Action onConnectedWithServer;
 
-    private void Start()
-    {
-        ConnectToServer();
-
-#if UNITY_EDITOR
-        onDecryptedMsgReceived += (_msg) =>
-        {
-            Debug.Log(_msg);
-        };
-#endif
-        m_gameObjectName = gameObject.name;
-    }
-
-    private void OnApplicationQuit()
-    {
-        m_localClient?.Close();
-        m_receiveThread?.Abort();
-    }
-
-    private void ConnectToServer()
+    private void ConnectToServer(string _ipAddress, int _port)
     {
         try
         {
-            m_localClient = new TcpClient(m_ipAddress, m_port);
+            m_localClient = new TcpClient(_ipAddress, _port);
             m_stream = m_localClient.GetStream();
 #if UNITY_EDITOR
             Debug.Log("Connected to local server...");
@@ -90,11 +65,11 @@ public class LocalClient : MonoBehaviour
 #if UNITY_EDITOR
                         if (_serverMsg.Length != 0)
                         {
-                            Debug.Log(m_gameObjectName + " received msg from server : " + _serverMsg);
+                            Debug.Log(m_localClient.Client.ToString() + " received msg from server : " + _serverMsg);
                         }
                         else
                         {
-                            Debug.Log(m_gameObjectName + " received no msg from server.");
+                            Debug.Log(m_localClient.Client.ToString() + " received no msg from server.");
                             continue;
                         }
 #endif
@@ -241,6 +216,11 @@ public class LocalClient : MonoBehaviour
 #endif
     }
 
+    public LocalClient(string _ipAddress, int _port)
+    {
+        ConnectToServer(_ipAddress, _port);
+    }
+
     public void SendMessageToServer(string _message)
     {
         if (m_localClient == null || !m_localClient.Connected)
@@ -251,10 +231,17 @@ public class LocalClient : MonoBehaviour
             return;
         }
 
-        byte[] data = Encoding.UTF8.GetBytes(_message);
-        m_stream.Write(data, 0, data.Length);
+        byte[] _data = Encoding.UTF8.GetBytes(_message);
+        m_stream.Write(_data, 0, _data.Length);
 #if UNITY_EDITOR
-        Debug.Log(m_gameObjectName + " sent message to server : " + _message);
+        Debug.Log(m_localClient.Client.ToString() + " sent message to server : " + _message);
 #endif
+    }
+
+    public void Disconnect()
+    {
+        m_localClient?.Close();
+        m_localClient?.Dispose();
+        m_receiveThread?.Abort();
     }
 }

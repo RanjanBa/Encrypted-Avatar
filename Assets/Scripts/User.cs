@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Net.NetworkInformation;
 using Newtonsoft.Json;
 using UnityEngine;
 
@@ -35,9 +36,6 @@ public class User : MonoBehaviour
 
     private void Awake()
     {
-        m_mainServerClient = GetComponent<Client>();
-        m_localServerClient = GetComponent<LocalClient>();
-
         logInProcess = new ProcessHandler<AvatarInfo>();
         avatarCreationProcess = new ProcessHandler<AvatarInfo>();
         worldCreationProcess = new ProcessHandler<WorldInfo>();
@@ -59,6 +57,8 @@ public class User : MonoBehaviour
             ParseMessage(_msg);
         };
 
+        m_localServerClient.onConnectedWithServer += GenerateKey;
+
         m_localServerClient.onKeyGenerated += (pk, sk) =>
         {
             m_publicKey = pk;
@@ -78,7 +78,8 @@ public class User : MonoBehaviour
             ParseMessage(_info);
         };
 
-        GenerateKey();
+        m_mainServerClient = new Client(m_serverIpAddress, m_serverPort);
+        m_localServerClient = new LocalClient(m_localIpAddress, m_localPort);
     }
 
     private void Update()
@@ -101,6 +102,12 @@ public class User : MonoBehaviour
     private void OnDisable()
     {
         messageReceivedProcess.Unsubscribe(GameManager.Instance.OnMessageReceived);
+    }
+
+    private void OnDestroy()
+    {
+        m_mainServerClient.Disconnect();
+        m_localServerClient.Disconnect();
     }
 
     private void OnAvatarCreated(AvatarInfo _avatarInfo)
@@ -326,7 +333,7 @@ public class User : MonoBehaviour
 #if UNITY_EDITOR
                 Debug.Log(_msg);
 #endif
-                CanvasManager.Instance.errorMsg.Enqueue(new ErrorMsg(_msg, 1f));
+                CanvasManager.Instance.errorMessagesQueue.Enqueue(new ErrorMsg(_msg, 1f));
             }
         }
 #if UNITY_EDITOR
@@ -393,14 +400,14 @@ public class User : MonoBehaviour
         m_localServerClient.SendMessageToServer(_msg);
     }
 
+    public void Register(string _hashString)
+    {
+
+    }
+
     public void LogIn()
     {
         logInProcess.ChangeProcessToCompleted(null);
-    }
-
-    public void SetUserId(string _userId)
-    {
-        m_usedId = _userId;
     }
 
     public void CreateAvatar(string _avatarName, string _viewId)

@@ -14,11 +14,9 @@ public class AuthenticationPanel : MonoBehaviour
     {
         m_logInBtn.onClick.AddListener(() =>
         {
-            // GameManager.Instance.LogIn();
         });
         m_registerBtn.onClick.AddListener(() =>
         {
-            // GameManager.Instance.RegisterNewUser();
             CanvasManager.Instance.ActivatePanel(m_registerPanel);
         });
     }

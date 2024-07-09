@@ -1,7 +1,9 @@
-using UnityEngine;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System;
+using System.Security.Cryptography;
+using System.Text;
+using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
@@ -10,14 +12,11 @@ public class GameManager : MonoBehaviour
     private static GameManager m_instance;
 
     [SerializeField]
-    private User m_userPrefab;
-    [SerializeField]
     private List<IconWithID> m_defaultAvatars = new List<IconWithID>();
     [SerializeField]
     private List<IconWithID> m_defaultWorlds = new List<IconWithID>();
 
     private Transform m_usersContainer;
-
     private readonly List<User> m_users = new List<User>();
 
     private User m_selectedUser;
@@ -166,15 +165,25 @@ public class GameManager : MonoBehaviour
         UpdateSelectedUser(_user);
     }
 
-    public void RegisterNewUser()
+    public void RegisterNewUser(string _userName, string _password, User _user)
     {
-        User _user = Instantiate(m_userPrefab, m_usersContainer);
-        _user.gameObject.name = "user " + (m_users.Count + 1).ToString();
-        Guid _guid = Guid.NewGuid();
-        _user.SetUserId(_guid.ToString());
-        _user.LogIn();
-        UpdateSelectedUser(_user);
-        m_users.Add(_user);
+        // User _user = Instantiate(m_userPrefab, m_usersContainer);
+        // _user.gameObject.name = "user " + (m_users.Count + 1).ToString();
+        // Guid _guid = Guid.NewGuid();
+        // _user.SetUserId(_guid.ToString());
+        // _user.LogIn();
+        // UpdateSelectedUser(_user);
+        // m_users.Add(_user);
+
+        SHA256 _sha256 = SHA256.Create();
+        byte[] _bytes = Encoding.UTF8.GetBytes(_userName + ":" + _password);
+        byte[] _hash = _sha256.ComputeHash(_bytes);
+        StringBuilder _stringBuilder = new StringBuilder();
+        for(int i = 0; i < _hash.Length; i++) {
+            _stringBuilder.Append(_hash[i].ToString("x2"));
+        }
+        string _hashString = _stringBuilder.ToString();
+        CanvasManager.Instance.errorMessagesQueue.Enqueue(new ErrorMsg(_hashString, 1f));
     }
 
     public void CreateAvatar(string _avatarName, string _viewId)
