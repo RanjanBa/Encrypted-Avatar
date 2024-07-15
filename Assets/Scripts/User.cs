@@ -1,9 +1,7 @@
 using System.Collections.Generic;
-using System.Net.NetworkInformation;
 using Newtonsoft.Json;
 using UnityEngine;
 
-[RequireComponent(typeof(Client))]
 public class User : MonoBehaviour
 {
     [SerializeField]
@@ -18,30 +16,31 @@ public class User : MonoBehaviour
     private string m_privateKey;
     private string m_publicKey;
     private string m_serverPublicKey;
-    private string m_usedId;
+    private string m_userId;
 
     private Client m_mainServerClient;
     private LocalClient m_localServerClient;
 
-    public string UserId => m_usedId;
+    public string UserId => m_userId;
 
-    public ProcessHandler<AvatarInfo> logInProcess;
+    public ProcessHandler<string> logInProcess;
     public ProcessHandler<string> registrationProcess;
     public ProcessHandler<AvatarInfo> avatarCreationProcess;
     public ProcessHandler<WorldInfo> worldCreationProcess;
     public ProcessHandler<List<AvatarInfo>> getAllAvatarsProcess;
     public ProcessHandler<List<WorldInfo>> getAllWorldsProcess;
-    public ProcessHandler<JoinInfo> worldJoinnedProcess;
+    public ProcessHandler<AvatarAndWorldInfo> worldJoinnedProcess;
     public ProcessHandler<Dictionary<string, string>> messageReceivedProcess;
 
     private void Awake()
     {
-        logInProcess = new ProcessHandler<AvatarInfo>();
+        logInProcess = new ProcessHandler<string>();
+        registrationProcess = new ProcessHandler<string>();
         avatarCreationProcess = new ProcessHandler<AvatarInfo>();
         worldCreationProcess = new ProcessHandler<WorldInfo>();
         getAllAvatarsProcess = new ProcessHandler<List<AvatarInfo>>();
         getAllWorldsProcess = new ProcessHandler<List<WorldInfo>>();
-        worldJoinnedProcess = new ProcessHandler<JoinInfo>();
+        worldJoinnedProcess = new ProcessHandler<AvatarAndWorldInfo>();
         messageReceivedProcess = new ProcessHandler<Dictionary<string, string>>();
     }
 
@@ -51,6 +50,9 @@ public class User : MonoBehaviour
         {
             GameManager.Instance.UpdateSelectedWorld(_joinInfo.worldInfo);
         });
+
+        m_mainServerClient = new Client();
+        m_localServerClient = new LocalClient();
 
         m_mainServerClient.onMessageReceived += (_msg) =>
         {
@@ -78,13 +80,14 @@ public class User : MonoBehaviour
             ParseMessage(_info);
         };
 
-        m_mainServerClient = new Client(m_serverIpAddress, m_serverPort);
-        m_localServerClient = new LocalClient(m_localIpAddress, m_localPort);
+        m_mainServerClient.ConnectToServer(m_serverIpAddress, m_serverPort);
+        m_localServerClient.ConnectToServer(m_localIpAddress, m_localPort);
     }
 
     private void Update()
     {
         logInProcess.UpdateProcess();
+        registrationProcess.UpdateProcess();
         avatarCreationProcess.UpdateProcess();
         worldCreationProcess.UpdateProcess();
         getAllAvatarsProcess.UpdateProcess();
@@ -106,8 +109,14 @@ public class User : MonoBehaviour
 
     private void OnDestroy()
     {
-        m_mainServerClient.Disconnect();
-        m_localServerClient.Disconnect();
+        m_mainServerClient?.Disconnect();
+        m_localServerClient?.Disconnect();
+    }
+
+    private void OnUserRegistered(string _usedId)
+    {
+        m_userId = _usedId;
+        registrationProcess.ChangeProcessToCompleted(_usedId);
     }
 
     private void OnAvatarCreated(AvatarInfo _avatarInfo)
@@ -130,7 +139,7 @@ public class User : MonoBehaviour
         getAllWorldsProcess.ChangeProcessToCompleted(_worlds);
     }
 
-    private void OnWorldJoinned(JoinInfo _joinInfo)
+    private void OnWorldJoinned(AvatarAndWorldInfo _joinInfo)
     {
         worldJoinnedProcess.ChangeProcessToCompleted(_joinInfo);
     }
@@ -184,6 +193,15 @@ public class User : MonoBehaviour
 
     private void DecodeInstruction(string _msgCode, Dictionary<string, string> _parsedMsg)
     {
+        if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
+        {
+#if UNITY_EDITOR
+            Debug.Log(_errorMsg);
+#endif
+            CanvasManager.Instance.toastMessagesQueue.Enqueue(new ToastMsg(_msgCode + " -> " + _errorMsg, 1f));
+            return;
+        }
+
         if (_msgCode == Instructions.SERVER_KEY)
         {
             m_serverPublicKey = _parsedMsg[Keys.PUBLIC_KEY];
@@ -194,6 +212,15 @@ public class User : MonoBehaviour
                 Debug.Log(_msg);
             }
 #endif
+        }
+        else if (_msgCode == Instructions.REGISTER_USER)
+        {
+            string _userId = _parsedMsg[Keys.USER_ID];
+            OnUserRegistered(_userId);
+#if UNITY_EDITOR
+            Debug.Log("User ID -> " + _userId);
+#endif
+
         }
         else if (_msgCode == Instructions.CREATE_AVATAR)
         {
@@ -269,7 +296,7 @@ public class User : MonoBehaviour
         }
         else if (_msgCode == Instructions.JOIN_WORLD)
         {
-            JoinInfo _joinInfo = new JoinInfo()
+            AvatarAndWorldInfo _joinInfo = new AvatarAndWorldInfo()
             {
                 worldInfo = new WorldInfo()
                 {
@@ -322,19 +349,6 @@ public class User : MonoBehaviour
                     };
             OnMessageReceived(_msgInfo);
             // onMessageRecieved?.Invoke(_msgInfo);
-        }
-        else if (_msgCode == Instructions.ERROR)
-        {
-#if UNITY_EDITOR
-            Debug.Log("Error occurs in server side...");
-#endif
-            if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
-            {
-#if UNITY_EDITOR
-                Debug.Log(_msg);
-#endif
-                CanvasManager.Instance.errorMessagesQueue.Enqueue(new ErrorMsg(_msg, 1f));
-            }
         }
 #if UNITY_EDITOR
         else
@@ -400,9 +414,17 @@ public class User : MonoBehaviour
         m_localServerClient.SendMessageToServer(_msg);
     }
 
-    public void Register(string _hashString)
+    public void Register(Dictionary<string, string> _infoDict)
     {
+        string _info = JsonConvert.SerializeObject(_infoDict);
+        registrationProcess.ChangeProcessToRunning();
+        Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
+            {Keys.INSTRUCTION, Instructions.REGISTER_USER},
+            {Keys.REGISTRATION_INFO, _info}
+        };
 
+        string _msg = JsonConvert.SerializeObject(_msgDict);
+        EncryptMsg(_msg, m_serverPublicKey);
     }
 
     public void LogIn()
@@ -496,8 +518,7 @@ public class User : MonoBehaviour
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
-        // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        m_mainServerClient.SendMessageToServer(_msg);
     }
 
     public void SendMessageToReceiver(string _worldId, string _receiverId, string _sendMsg)
@@ -523,6 +544,7 @@ public class User : MonoBehaviour
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
 #if UNITY_EDITOR
+        Debug.Log("Generate Public & Private Key...");
         Debug.Log(_msg);
 #endif
         m_localServerClient.SendMessageToServer(_msg);

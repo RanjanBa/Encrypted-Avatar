@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Security.Cryptography;
 using System.Text;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class GameManager : MonoBehaviour
 {
@@ -16,27 +16,31 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     private List<IconWithID> m_defaultWorlds = new List<IconWithID>();
 
-    private Transform m_usersContainer;
-    private readonly List<User> m_users = new List<User>();
-
     private User m_selectedUser;
     private AvatarInfo m_selectedAvatar;
     private WorldInfo m_selectedWorld;
 
-    public Action<AvatarInfo> onLoggedIn;
+    public Action<string> onLoggedIn;
     public Action<AvatarInfo> onAvatarCreated;
     public Action<WorldInfo> onWorldCreated;
-    public Action<JoinInfo> onWorldJoinned;
+    public Action<AvatarAndWorldInfo> onWorldJoinned;
 
-    public Action<WorldInfo> onSelectedWorldChanged;
     public Action<User> onSelectedUserChanged;
+    public Action<WorldInfo> onSelectedWorldChanged;
     public Action<Dictionary<string, string>> onMessageReceived;
 
     public ReadOnlyCollection<IconWithID> DefaultAvatars => new ReadOnlyCollection<IconWithID>(m_defaultAvatars);
     public ReadOnlyCollection<IconWithID> DefaultWorlds => new ReadOnlyCollection<IconWithID>(m_defaultWorlds);
-    public ReadOnlyCollection<User> Users => new ReadOnlyCollection<User>(m_users);
 
-    public User CurrentlySelectedUser => m_selectedUser;
+    public User CurrentlySelectedUser
+    {
+        get { return m_selectedUser; }
+        set
+        {
+            onSelectedUserChanged?.Invoke(value);
+            m_selectedUser = value;
+        }
+    }
 
     private void Awake()
     {
@@ -53,12 +57,11 @@ public class GameManager : MonoBehaviour
         }
 
         m_instance = this;
-        m_usersContainer = new GameObject("Root").transform;
     }
 
-    private void OnLoggedIn(AvatarInfo _info)
+    private void OnLoggedIn(string _userId)
     {
-        onLoggedIn?.Invoke(_info);
+        onLoggedIn?.Invoke(_userId);
     }
 
     private void OnAvatarCreated(AvatarInfo _info)
@@ -71,7 +74,7 @@ public class GameManager : MonoBehaviour
         onWorldCreated?.Invoke(_info);
     }
 
-    private void OnWorldJoinned(JoinInfo _info)
+    private void OnWorldJoinned(AvatarAndWorldInfo _info)
     {
         onWorldJoinned?.Invoke(_info);
     }
@@ -123,24 +126,24 @@ public class GameManager : MonoBehaviour
 
     public void UpdateSelectedUser(User _user)
     {
-        if (_user == null) return;
+        if (_user == CurrentlySelectedUser || _user == null) return;
 
-        if (m_selectedUser != null)
+        if (CurrentlySelectedUser != null)
         {
-            m_selectedUser.gameObject.SetActive(false);
-            m_selectedUser.logInProcess.Unsubscribe(OnLoggedIn);
-            m_selectedUser.avatarCreationProcess.Unsubscribe(OnAvatarCreated);
-            m_selectedUser.worldCreationProcess.Unsubscribe(OnWorldCreated);
-            m_selectedUser.worldJoinnedProcess.Unsubscribe(OnWorldJoinned);
+            CurrentlySelectedUser.gameObject.SetActive(false);
+            CurrentlySelectedUser.logInProcess.Unsubscribe(OnLoggedIn);
+            CurrentlySelectedUser.avatarCreationProcess.Unsubscribe(OnAvatarCreated);
+            CurrentlySelectedUser.worldCreationProcess.Unsubscribe(OnWorldCreated);
+            CurrentlySelectedUser.worldJoinnedProcess.Unsubscribe(OnWorldJoinned);
         }
 
         _user.gameObject.SetActive(true);
-        m_selectedUser = _user;
-        onSelectedUserChanged?.Invoke(_user);
-        m_selectedUser.logInProcess.Subscribe(OnLoggedIn);
-        m_selectedUser.avatarCreationProcess.Subscribe(OnAvatarCreated);
-        m_selectedUser.worldCreationProcess.Subscribe(OnWorldCreated);
-        m_selectedUser.worldJoinnedProcess.Subscribe(OnWorldJoinned);
+        CurrentlySelectedUser = _user;
+        CurrentlySelectedUser.logInProcess.Subscribe(OnLoggedIn);
+        CurrentlySelectedUser.avatarCreationProcess.Subscribe(OnAvatarCreated);
+        CurrentlySelectedUser.worldCreationProcess.Subscribe(OnWorldCreated);
+        CurrentlySelectedUser.worldJoinnedProcess.Subscribe(OnWorldJoinned);
+        onSelectedUserChanged?.Invoke(CurrentlySelectedUser);
     }
 
     public void UpdateSelectedAvatar(AvatarInfo _avatarInfo)
@@ -154,41 +157,46 @@ public class GameManager : MonoBehaviour
         onSelectedWorldChanged?.Invoke(_worldInfo);
     }
 
+    public void RegisterNewUser(string _firstName, string _lastName, string _userName, string _password, User _user)
+    {
+        Dictionary<string, string> _info = new Dictionary<string, string>();
+
+        // SHA256 _sha256 = SHA256.Create();
+        // byte[] _bytes = Encoding.UTF8.GetBytes(_userName + ":" + _password);
+        // byte[] _hash = _sha256.ComputeHash(_bytes);
+        // StringBuilder _stringBuilder = new StringBuilder();
+        // for (int i = 0; i < _hash.Length; i++)
+        // {
+        //     _stringBuilder.Append(_hash[i].ToString("x2"));
+        // }
+        // string _hashString = _stringBuilder.ToString();
+        // CanvasManager.Instance.toastMessagesQueue.Enqueue(new ToastMsg(_hashString, 1f));
+        _user.registrationProcess.Subscribe((_) =>
+        {
+            UpdateSelectedUser(_user);
+        });
+        _info[Keys.FIRST_NAME] = _firstName;
+        _info[Keys.LAST_NAME] = _lastName;
+        _info[Keys.USER_NAME] = _userName;
+        _info[Keys.PASSWORD] = _password;
+        _user.Register(_info);
+    }
+
     public void LogIn(User _user)
     {
-        if (!m_users.Contains(_user))
-        {
-            return;
-        }
         _user.LogIn();
-        onLoggedIn?.Invoke(null); // TODO:: change during authentication implementation
+        onLoggedIn?.Invoke(_user.UserId); // TODO:: change during authentication implementation
         UpdateSelectedUser(_user);
     }
 
-    public void RegisterNewUser(string _userName, string _password, User _user)
+    public void LogOut()
     {
-        // User _user = Instantiate(m_userPrefab, m_usersContainer);
-        // _user.gameObject.name = "user " + (m_users.Count + 1).ToString();
-        // Guid _guid = Guid.NewGuid();
-        // _user.SetUserId(_guid.ToString());
-        // _user.LogIn();
-        // UpdateSelectedUser(_user);
-        // m_users.Add(_user);
-
-        SHA256 _sha256 = SHA256.Create();
-        byte[] _bytes = Encoding.UTF8.GetBytes(_userName + ":" + _password);
-        byte[] _hash = _sha256.ComputeHash(_bytes);
-        StringBuilder _stringBuilder = new StringBuilder();
-        for(int i = 0; i < _hash.Length; i++) {
-            _stringBuilder.Append(_hash[i].ToString("x2"));
-        }
-        string _hashString = _stringBuilder.ToString();
-        CanvasManager.Instance.errorMessagesQueue.Enqueue(new ErrorMsg(_hashString, 1f));
+        CurrentlySelectedUser = null;
     }
 
     public void CreateAvatar(string _avatarName, string _viewId)
     {
-        if (m_selectedUser == null)
+        if (CurrentlySelectedUser == null)
         {
 #if UNITY_EDITOR
             Debug.Log("No User is selected. First SignIn or SignUp.");
@@ -198,12 +206,12 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Creating Avatar -> " + _avatarName + "...");
 #endif
-        m_selectedUser.CreateAvatar(_avatarName, _viewId);
+        CurrentlySelectedUser.CreateAvatar(_avatarName, _viewId);
     }
 
     public void CreateWorld(string _worldName, string _viewId)
     {
-        if (m_selectedUser == null)
+        if (CurrentlySelectedUser == null)
         {
 #if UNITY_EDITOR
             Debug.Log("No User is selected. First SignIn or SignUp.");
@@ -213,12 +221,12 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Creating World -> " + _worldName + "...");
 #endif
-        m_selectedUser.CreateWorld(_worldName, _viewId);
+        CurrentlySelectedUser.CreateWorld(_worldName, _viewId);
     }
 
     public void JoinWorld()
     {
-        if (m_selectedUser == null)
+        if (CurrentlySelectedUser == null)
         {
 #if UNITY_EDITOR
             Debug.Log("No User is selected. First SignIn or SignUp.");
@@ -244,12 +252,12 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Joining avatar -> " + m_selectedAvatar.avatarName + ", " + "World -> " + m_selectedWorld.worldName + "...");
 #endif
-        m_selectedUser.JoinWorld(m_selectedAvatar.avatarId, m_selectedWorld.worldId);
+        CurrentlySelectedUser.JoinWorld(m_selectedAvatar.avatarId, m_selectedWorld.worldId);
     }
 
     public void GetAllMyAvatars()
     {
-        if (m_selectedUser == null)
+        if (CurrentlySelectedUser == null)
         {
 #if UNITY_EDITOR
             Debug.Log("No User is selected. First SignIn or SignUp.");
@@ -259,12 +267,12 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Getting all Avatars...");
 #endif
-        m_selectedUser.GetAllMyAvatars();
+        CurrentlySelectedUser.GetAllMyAvatars();
     }
 
     public void GetAllWorlds()
     {
-        if (m_selectedUser == null)
+        if (CurrentlySelectedUser == null)
         {
 #if UNITY_EDITOR
             Debug.Log("No User is selected. First SignIn or SignUp.");
@@ -274,12 +282,12 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Getting all Worlds...");
 #endif
-        m_selectedUser.GetAllWorlds();
+        CurrentlySelectedUser.GetAllWorlds();
     }
 
     public void GetAllAvatarsFromSelectedWorld()
     {
-        if (m_selectedUser == null)
+        if (CurrentlySelectedUser == null)
         {
 #if UNITY_EDITOR
             Debug.Log("No User is selected. First SignIn or SignUp.");
@@ -298,12 +306,12 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Getting all Avatars from world -> " + _worldId + "...");
 #endif
-        m_selectedUser.GetAllAvatarsFromWorld(_worldId);
+        CurrentlySelectedUser.GetAllAvatarsFromWorld(_worldId);
     }
 
     public void SendMessageToReceiver(string _receiverId, string _msg)
     {
-        if (m_selectedUser == null)
+        if (CurrentlySelectedUser == null)
         {
 #if UNITY_EDITOR
             Debug.Log("No User is selected. First SignIn or SignUp.");
@@ -320,6 +328,6 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         Debug.Log("Sending msg to receiver -> " + _receiverId + " within the world -> " + m_selectedWorld.worldId + "...");
 #endif
-        m_selectedUser.SendMessageToReceiver(m_selectedWorld.worldId, _receiverId, _msg);
+        CurrentlySelectedUser.SendMessageToReceiver(m_selectedWorld.worldId, _receiverId, _msg);
     }
 }

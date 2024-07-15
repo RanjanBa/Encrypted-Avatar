@@ -9,8 +9,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 9100019326537102908}
-  - component: {fileID: 9100019326537102909}
-  - component: {fileID: 1702082900296531032}
   - component: {fileID: 9100019326537102911}
   m_Layer: 0
   m_Name: User
@@ -33,34 +31,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &9100019326537102909
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9100019326537102896}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4182e1e425c50d954a5dbb164045befa, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_ipAddress: 127.0.0.1
-  m_port: 12000
---- !u!114 &1702082900296531032
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9100019326537102896}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5b87bcfa6aa750d43b3c11a258871ffb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_ipAddress: 127.0.0.1
-  m_port: 9000
 --- !u!114 &9100019326537102911
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -73,3 +43,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8e9fedaaa1ce1447a7e1228a1f4e000, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_serverIpAddress: 127.0.0.1
+  m_serverPort: 12000
+  m_localIpAddress: 127.0.0.1
+  m_localPort: 9000

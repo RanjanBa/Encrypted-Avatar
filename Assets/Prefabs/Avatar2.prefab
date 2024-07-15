@@ -57,27 +57,7 @@ PrefabInstance:
       objectReference: {fileID: 9100000, guid: e315e57dee2320c44bec6137228d4154, type: 2}
     - target: {fileID: 7566397274181922499, guid: 501b7d8ea3fd67c42bc8bd135e180e99, type: 3}
       propertyPath: m_Name
-      value: Avatar 2
+      value: Avatar2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 501b7d8ea3fd67c42bc8bd135e180e99, type: 3}
---- !u!1 &365338946628573319 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 7566397274181922499, guid: 501b7d8ea3fd67c42bc8bd135e180e99, type: 3}
-  m_PrefabInstance: {fileID: 7786952374239737412}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &742463166235369941
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 365338946628573319}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5b87bcfa6aa750d43b3c11a258871ffb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  alias: Ranjan
-  ipAddress: 127.0.0.1
-  port: 9000

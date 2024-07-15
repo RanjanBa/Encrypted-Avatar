@@ -19,31 +19,6 @@ public class LocalClient
     public Action<Dictionary<string, string>> onEncryptedMsgReceived;
     public Action<string> onDecryptedMsgReceived;
 
-    private void ConnectToServer(string _ipAddress, int _port)
-    {
-        try
-        {
-            m_localClient = new TcpClient(_ipAddress, _port);
-            m_stream = m_localClient.GetStream();
-#if UNITY_EDITOR
-            Debug.Log("Connected to local server...");
-#endif
-            onConnectedWithServer?.Invoke();
-
-            m_receiveThread = new Thread(new ThreadStart(ListeningServerForMsg))
-            {
-                IsBackground = true
-            };
-            m_receiveThread.Start();
-        }
-        catch (SocketException e)
-        {
-#if UNITY_EDITOR
-            Debug.LogError("SocketException: " + e.ToString());
-#endif
-        }
-    }
-
     private void ListeningServerForMsg()
     {
         try
@@ -208,17 +183,36 @@ public class LocalClient
 #endif
             return;
         }
-
-        onDecryptedMsgReceived?.Invoke(_msg);
-
 #if UNITY_EDITOR
         Debug.Log("Parsing Decrypted Msg Completed...");
 #endif
+
+        onDecryptedMsgReceived?.Invoke(_msg);
     }
 
-    public LocalClient(string _ipAddress, int _port)
+    public void ConnectToServer(string _ipAddress, int _port)
     {
-        ConnectToServer(_ipAddress, _port);
+        try
+        {
+            m_localClient = new TcpClient(_ipAddress, _port);
+            m_stream = m_localClient.GetStream();
+#if UNITY_EDITOR
+            Debug.Log("Connected to local server...");
+#endif
+            onConnectedWithServer?.Invoke();
+
+            m_receiveThread = new Thread(new ThreadStart(ListeningServerForMsg))
+            {
+                IsBackground = true
+            };
+            m_receiveThread.Start();
+        }
+        catch (SocketException e)
+        {
+#if UNITY_EDITOR
+            Debug.LogError("SocketException: " + e.ToString());
+#endif
+        }
     }
 
     public void SendMessageToServer(string _message)

@@ -13,6 +13,8 @@ public class ChatUIView : MonoBehaviour
     [SerializeField]
     private TMP_InputField m_messageInputField;
     [SerializeField]
+    private Image m_avatarIcon;
+    [SerializeField]
     private Button m_sendMsgBtn;
     [SerializeField]
     private GameObject m_receiveMessagePanel;
@@ -56,6 +58,7 @@ public class ChatUIView : MonoBehaviour
     {
         m_avatarInfo = _avatarInfo;
         m_avatarNameText.text = _avatarInfo != null ? _avatarInfo.avatarName : "";
+        m_avatarIcon.sprite = _avatarInfo != null ? GameManager.Instance.GetAvatarSprite(_avatarInfo.avatarViewId) : null;
     }
 
     public string GetInputText()

@@ -11,6 +11,7 @@ from avatar import Avatar
 from utilities import Instructions, Keys, MessageType
 from kyber import Kyber1024
 import kyber_encrypt_decrypt 
+from user_info import UserInfo
 import json
 import uuid
 
@@ -22,6 +23,7 @@ main_server = socket(AF_INET, SOCK_STREAM)
 main_server.bind((host, port))
 main_server.listen(5)
 
+registered_users : set[UserInfo] = set()
 clients : set[Client] = set()
 worldsDict : dict[str, World] = {}
 
@@ -37,7 +39,7 @@ def getClientFromAddress(address, port) -> Client:
     return None
 
 
-def getClientFromAvatarId(avatar_id) -> Client:
+def getClientFromAvatarId(avatar_id) -> Client | None:
     for client in clients:
         av = client.getAvatar(avatar_id)
         if av != None:
@@ -114,26 +116,62 @@ def encryptMsg(msg : str, key : str) -> dict[str, str]:
 
 
 def logInUser(client : Client, parsedMsg : dict):
-    print("Not implemented...")
+    login_info = json.loads(parsedMsg[Keys.LOGIN_INFO.value])
+    user_name = login_info[Keys.USER_NAME]
+    password = login_info[Keys.PASSWORD]
+    
+    info : dict[str, str] = {}
+    info[Keys.INSTRUCTION.value] = Instructions.REGISTER_USER.value
+    
+    for user in registered_users:
+        if user.user_name == user_name and user.password == password:
+            user_id = str(uuid.uuid5(uuid.NAMESPACE_X500, user_name))
+            info[Keys.USER_ID.value] = user_id
+            msg = json.dumps(info)
+            sendEncryptedMessageToClient(client, msg)
+            return
+    
+    info[Keys.ERROR.value] = "username and password is incorrect..."
+    msg = json.dumps(info)
+    sendEncryptedMessageToClient(client, msg)
+    print("username and password is incorrect...")
     
 
 def registerNewUser(client : Client, parsedMsg : dict):
-    user_id = str(uuid.uuid5(uuid.NAMESPACE_X500, parsedMsg[Keys.REGISTRATION_INFO.value]))
+    registration_info = json.loads(parsedMsg[Keys.REGISTRATION_INFO.value])
+    user_name = registration_info[Keys.USER_NAME]
+    first_name = registration_info[Keys.FIRST_NAME]
+    last_name = registration_info[Keys.LAST_NAME]
+    password = registration_info[Keys.PASSWORD]
+    
     info : dict[str, str] = {}
     info[Keys.INSTRUCTION.value] = Instructions.REGISTER_USER.value
+    
+    for user in registered_users:
+        if user.user_name == user_name:
+            info[Keys.ERROR.value] = "user name is already taken."
+            msg = json.dumps(info)
+            sendEncryptedMessageToClient(client, msg)
+            return
+
+    user = UserInfo(first_name, last_name, user_name, password)
+    registered_users.add(user)
+    
+    user_id = str(uuid.uuid5(uuid.NAMESPACE_X500, user_name))
     info[Keys.USER_ID.value] = user_id
     msg = json.dumps(info)
-    sendMessageToClient(client, msg)
+    sendEncryptedMessageToClient(client, msg)
     
 
 def createAvatar(client : Client, parsedMsg : dict):
     print("Creating New Avatar")
     info : dict[str, str] = {}
+    info[Keys.INSTRUCTION.value] = Instructions.CREATE_AVATAR.value
+    
     if not Keys.AVATAR_NAME.value in parsedMsg:
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = "You did not provide any avatar name in the msg."
+        info[Keys.ERROR.value] = "You did not provide any avatar name in the msg."
         msg = json.dumps(info)
-        sendMessageToClient(client, msg)
+        sendEncryptedMessageToClient(client, msg)
         print("No avatar name key is present in the msg.")
         return
 
@@ -144,39 +182,36 @@ def createAvatar(client : Client, parsedMsg : dict):
     avatar = Avatar(avatar_id, avatar_name, avatar_view_id)
     
     if client.addAvatar(avatar):
-        info[Keys.INSTRUCTION.value] = Instructions.CREATE_AVATAR.value
         info[Keys.AVATAR_ID.value] = avatar_id
         info[Keys.AVATAR_NAME.value] = avatar_name
         info[Keys.AVATAR_VIEW_ID.value] = avatar_view_id
         print(f"New avatar is created with id : {avatar_id} , name : {avatar_name}")
     else:
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = f"Avatar can't be created with id {avatar_id}. Client already have that avatar id"
+        info[Keys.ERROR.value] = f"Avatar can't be created with id {avatar_id}. Client already have that avatar id"
         print(f"Avatar can't be created with id {avatar_id}. Client already have that avatar")
     
     msg = json.dumps(info)
     print(msg)
-    sendMessageToClient(client, msg)
+    sendEncryptedMessageToClient(client, msg)
 
 
 def createNewWorld(client : Client, parsedMsg : dict):
     print("Creating New World")
     info : dict[str, str] = {}
+    info[Keys.INSTRUCTION.value] = Instructions.CREATE_WORLD.value
+    
     if not Keys.WORLD_NAME.value in parsedMsg:
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = "You did not provide any world name in the msg."
+        info[Keys.ERROR.value] = "You did not provide any world name in the msg."
         msg = json.dumps(info)
-        sendMessageToClient(client, msg)
+        sendEncryptedMessageToClient(client, msg)
         print("No world name key is present in the msg.")
         return
     
     world_id = str(uuid.uuid4())
     if worldsDict.__contains__(world_id):
-        info = {}
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = f"Can't create new world. World is already exist with world id {world_id}."
+        info[Keys.ERROR.value] = f"Can't create new world. World is already exist with world id {world_id}."
         msg = json.dumps(info)
-        sendMessageToClient(client, msg)
+        sendEncryptedMessageToClient(client, msg)
         print(f"Can't create new world. World is already exist with world id {world_id}.")
         return
     
@@ -186,55 +221,50 @@ def createNewWorld(client : Client, parsedMsg : dict):
     
     worldsDict[world_id] = world
     
-    info[Keys.INSTRUCTION.value] = Instructions.CREATE_WORLD.value
     info[Keys.WORLD_ID.value] = world_id
     info[Keys.WORLD_NAME.value] = world_name
     info[Keys.WORLD_VIEW_ID.value] = world_view_id
     msg = json.dumps(info)
     print(msg)
-    sendMessageToClient(client, msg)
+    sendEncryptedMessageToClient(client, msg)
 
 
 def joinWorld(client : Client, parsedMsg : dict):
     print("Joining World")
     info : dict[str, str] = {}
+    info[Keys.INSTRUCTION.value] = Instructions.JOIN_WORLD.value
+    
     if not Keys.WORLD_ID.value in parsedMsg:
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = "No world id key is present in the msg."
+        info[Keys.ERROR.value] = "No world id key is present in the msg."
         msg = json.dumps(info)
-        sendMessageToClient(client, msg)
+        sendEncryptedMessageToClient(client, msg)
         print("No world id key is present in the msg.")
         return
 
     if not Keys.AVATAR_ID.value in parsedMsg:
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = "No avatar id key is present in the msg."
+        info[Keys.ERROR.value] = "No avatar id key is present in the msg."
         msg = json.dumps(info)
-        sendMessageToClient(client, msg)
+        sendEncryptedMessageToClient(client, msg)
         print("No avatar id key is present in the msg.")
         return
 
     world_id = parsedMsg[Keys.WORLD_ID.value]
     if not worldsDict.__contains__(world_id):
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = f"Can't join the world with id {world_id}. World with that id doesn't exists."
+        info[Keys.ERROR.value] = f"Can't join the world with id {world_id}. World with that id doesn't exists."
         msg = json.dumps(info)
-        sendMessageToClient(client, msg)
+        sendEncryptedMessageToClient(client, msg)
         return
     
     avatar_id = parsedMsg[Keys.AVATAR_ID.value]
     avatar = client.getAvatar(avatar_id)
     if avatar in worldsDict[world_id]:
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = f"{avatar.avatarName} has already joinned the world with id {world_id}."
+        info[Keys.ERROR.value] = f"{avatar.avatarName} has already joinned the world with id {world_id}."
         msg = json.dumps(info)
-        sendMessageToClient(client, msg)
+        sendEncryptedMessageToClient(client, msg)
         print(f"{avatar.avatarName} has already joinned the world with id {world_id}.")
         return
     
     worldsDict[world_id].addAvatar(avatar)
-    
-    info[Keys.INSTRUCTION.value] = Instructions.JOIN_WORLD.value
     
     info[Keys.WORLD_ID.value] = world_id
     info[Keys.WORLD_NAME.value] = worldsDict[world_id].worldName
@@ -250,7 +280,7 @@ def joinWorld(client : Client, parsedMsg : dict):
     for ava in worldsDict[world_id].avatars:
         cl = getClientFromAvatarId(ava.avatarID)
         if not cl is None:
-            sendMessageToClient(cl, msg)
+            sendEncryptedMessageToClient(cl, msg)
 
 
 def allWorlds(client : Client, parsedMsg : dict):
@@ -264,7 +294,7 @@ def allWorlds(client : Client, parsedMsg : dict):
         idx += 1
     msg = json.dumps(info)
     print(msg)
-    sendMessageToClient(client, msg)
+    sendEncryptedMessageToClient(client, msg)
 
 
 def clientAllAvatars(client : Client, parsedMsg : dict):
@@ -276,68 +306,64 @@ def clientAllAvatars(client : Client, parsedMsg : dict):
     
     msg = json.dumps(info)
     print(msg)
-    sendMessageToClient(client, msg)
+    sendEncryptedMessageToClient(client, msg)
 
 
 def worldAllAvatars(client : Client, parsedMsg : dict):
     print("Getting All Avatars of the World")
     info : dict[str, str] = {}
+    info[Keys.INSTRUCTION.value] = Instructions.WORLD_ALL_AVATARS.value
 
     if not Keys.WORLD_ID.value in parsedMsg:
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = "No world id key is present in the msg."
+        info[Keys.ERROR.value] = "No world id key is present in the msg."
         msg = json.dumps(info)
-        sendMessageToClient(client, msg)
+        sendEncryptedMessageToClient(client, msg)
         print("No world id key is present in the msg.")
         return
     
     world_id = parsedMsg[Keys.WORLD_ID.value]
     if not worldsDict.__contains__(world_id):
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = f"Can't get avatars of the world with id {world_id}. World with that id doesn't exists."
+        info[Keys.ERROR.value] = f"Can't get avatars of the world with id {world_id}. World with that id doesn't exists."
         msg = json.dumps(info)
-        sendMessageToClient(client, msg)
+        sendEncryptedMessageToClient(client, msg)
         print(f"Can't get info of the world with id {world_id}. World with that id doesn't exists.")
         return
 
     world_avatars = worldsDict[world_id].avatars
     
-    info[Keys.INSTRUCTION.value] = Instructions.WORLD_ALL_AVATARS.value
     for idx in range(len(world_avatars)):
         avatar = world_avatars[idx]
         info[str(idx)] = avatar.avatarID + "," + avatar.avatarName + "," + avatar.viewId
     
     msg = json.dumps(info)
     print(msg)
-    sendMessageToClient(client, msg)
+    sendEncryptedMessageToClient(client, msg)
 
 
 def sendMessageBetweenClient(client : Client, parsedMsg : dict):
     print("Sending Message to Avatar")
     print(parsedMsg)
     info : dict[str, str] = {}
+    info[Keys.INSTRUCTION.value] = Instructions.SEND_MSG.value
     
     if not Keys.WORLD_ID.value in parsedMsg:
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = "No world id key is present in the msg."
+        info[Keys.ERROR.value] = "No world id key is present in the msg."
         msg = json.dumps(info)
-        sendMessageToClient(client, msg)
+        sendEncryptedMessageToClient(client, msg)
         print("No world id key is present in the msg.")
         return
 
     if not Keys.RECIEVER_ID.value in parsedMsg:
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = "No avatar id key is present in the msg."
+        info[Keys.ERROR.value] = "No avatar id key is present in the msg."
         msg = json.dumps(info)
-        sendMessageToClient(client, msg)
+        sendEncryptedMessageToClient(client, msg)
         print("No avatar id key is present in the msg.")
         return
 
     if not Keys.MESSAGE.value in parsedMsg:
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = "No message key is present in the msg."
+        info[Keys.ERROR.value] = "No message key is present in the msg."
         msg = json.dumps(info)
-        sendMessageToClient(client, msg)
+        sendEncryptedMessageToClient(client, msg)
         print("No message key is present in the msg.")
         return
 
@@ -351,32 +377,29 @@ def sendMessageBetweenClient(client : Client, parsedMsg : dict):
             break
     
     if not is_receiver_found:
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = f"No avatar {receiver_id} is present in the world {world_id}."
+        info[Keys.ERROR.value] = f"No avatar {receiver_id} is present in the world {world_id}."
         msg = json.dumps(info)
-        sendMessageToClient(client, msg)
+        sendEncryptedMessageToClient(client, msg)
         print(f"No avatar {receiver_id} is present in the world {world_id}.")
         return
     
     receiver : Client = getClientFromAvatarId(receiver_id)
     if receiver is None:
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
-        info[Keys.MESSAGE.value] = f"No receiver is found with avatar id {receiver_id}."
+        info[Keys.ERROR.value] = f"No receiver is found with avatar id {receiver_id}."
         msg = json.dumps(info)
-        sendMessageToClient(client, msg)
+        sendEncryptedMessageToClient(client, msg)
         print(f"No receiver is found with avatar id {receiver_id}.")
         return
 
-    info[Keys.INSTRUCTION.value] = Instructions.SEND_MSG.value
     info[Keys.WORLD_ID.value] = world_id
     info[Keys.AVATAR_ID.value] = receiver_id
     info[Keys.MESSAGE.value] = parsedMsg[Keys.MESSAGE.value]
     msg = json.dumps(info)
     print(msg)
-    sendMessageToClient(receiver, msg)
+    sendEncryptedMessageToClient(receiver, msg)
 
 
-def sendMessageToClient(receiver : Client, msg : str):
+def sendEncryptedMessageToClient(receiver : Client, msg : str):
     encrypted_msg = encryptMsg(msg, receiver.publicKey)
     msg = json.dumps(encrypted_msg)
     receiver.sendMessage(msg)
@@ -402,7 +425,6 @@ def handleClient(client_socket : socket):
     
     info : dict[str, str] = {}
     if client != None:
-        info[Keys.INSTRUCTION.value] = Instructions.ERROR.value
         info[Keys.MESSAGE.value] = f"You {client_socket.getpeername()} are already joinned..."
         print(f"Already joinned. Number of clients joinned {len(clients)}")
     else:
@@ -453,9 +475,9 @@ def handleClient(client_socket : socket):
 def startServer():
     while True:
         try:
-            print("Server is listening and waiting for new client...")
+            print("Main Server is listening and waiting for new client...")
             client_socket, address = main_server.accept()
-            print(f"New client of address {address} is connected with server {main_server.getsockname()}.")
+            print(f"New client of address {address} is connected with main server {main_server.getsockname()}.")
             thread = Thread(target=handleClient, args=(client_socket,))
             thread.daemon = True
             thread.start()

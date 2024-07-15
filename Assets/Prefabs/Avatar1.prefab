@@ -440,7 +440,6 @@ GameObject:
   - component: {fileID: 8306243886227738952}
   - component: {fileID: 4858127087364395046}
   - component: {fileID: 7592315029947084302}
-  - component: {fileID: 1481699116178479276}
   m_Layer: 0
   m_Name: Avatar1
   m_TagString: Untagged
@@ -511,21 +510,6 @@ MonoBehaviour:
     BodyType: 1
     OutfitGender: 1
     SkinTone: '#953e1e'
---- !u!114 &1481699116178479276
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 963116201883834450}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5b87bcfa6aa750d43b3c11a258871ffb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  alias: Luffy
-  ipAddress: 127.0.0.1
-  port: 9000
 --- !u!1 &1105597055195861669
 GameObject:
   m_ObjectHideFlags: 0

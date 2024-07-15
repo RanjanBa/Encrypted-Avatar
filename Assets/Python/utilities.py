@@ -13,16 +13,16 @@ class Instructions(Enum):
     SERVER_KEY = "server_key"
     CLIENT_KEY = "client_key"
     AVATAR_KEY = "avatar_key"
-    GET_KEY = "get_key"
+    GET_CLIENT_KEY = "get_client_key"
     ALL_WORLDS = "all_worlds"
     ENCRYPT_MSG = "encrypt_msg"
     DECRYPT_MSG = "decrypt_msg"
     GENERATE_KEY = "generate_key"
-    ERROR = "error"
     
 class Keys(Enum):
     MSG_TYPE = "msg_type"
     INSTRUCTION = "instruction"
+    ERROR = "error"
     MESSAGE = "msg"
     WORLD_ID = "world_id"
     WORLD_NAME = "world_name"
@@ -38,7 +38,12 @@ class Keys(Enum):
     CIPHER_TEXT = "cipher_text"
     NONCE = "nonce"
     REGISTRATION_INFO = "registration_info"
+    LOGIN_INFO = "login_info"
     USER_ID = "user_id"
+    FIRST_NAME = "first_name"
+    LAST_NAME = "last_name"
+    USER_NAME = "user_name"
+    PASSWORD = "password"
     
 class MessageType(Enum):
     PLAIN_TEXT = "plain_text"

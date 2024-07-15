@@ -15,31 +15,6 @@ public class Client
     public Action onConnectedWithServer;
     public Action<string> onMessageReceived;
 
-    private void ConnectToServer(string _ipAddress, int _port)
-    {
-        try
-        {
-            m_client = new TcpClient(_ipAddress, _port);
-            m_stream = m_client.GetStream();
-#if UNITY_EDITOR
-            Debug.Log("Connected to the main server...");
-#endif
-            onConnectedWithServer?.Invoke();
-
-            m_receiverThread = new Thread(new ThreadStart(ListeningServerForMsg))
-            {
-                IsBackground = true
-            };
-            m_receiverThread.Start();
-        }
-        catch (SocketException e)
-        {
-#if UNITY_EDITOR
-            Debug.LogError("SocketException : " + e.ToString());
-#endif
-        }
-    }
-
     private void ListeningServerForMsg()
     {
         try
@@ -79,9 +54,29 @@ public class Client
         }
     }
 
-    public Client(string _ipAddress, int _port)
+    public void ConnectToServer(string _ipAddress, int _port)
     {
-        ConnectToServer(_ipAddress, _port);
+        try
+        {
+            m_client = new TcpClient(_ipAddress, _port);
+            m_stream = m_client.GetStream();
+#if UNITY_EDITOR
+            Debug.Log("Connected to the main server...");
+#endif
+            onConnectedWithServer?.Invoke();
+
+            m_receiverThread = new Thread(new ThreadStart(ListeningServerForMsg))
+            {
+                IsBackground = true
+            };
+            m_receiverThread.Start();
+        }
+        catch (SocketException e)
+        {
+#if UNITY_EDITOR
+            Debug.LogError("SocketException : " + e.ToString());
+#endif
+        }
     }
 
     public void SendMessageToServer(string _message)

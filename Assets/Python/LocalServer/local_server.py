@@ -51,8 +51,8 @@ def handleClients(client : Client):
     if(client in clients):
         clients.remove(client)
     client.close()
-    print(f"Client left the server!")
-    print(f"Number of clients {len(clients)}")
+    print(f"Client left the local server!")
+    print(f"Number of clients left on local server -> {len(clients)}")
 
 
 def parseMessage(client : Client, msg : str):
@@ -130,9 +130,9 @@ def parseMessage(client : Client, msg : str):
 def startServer():
     while True:
         try:
-            print("Server is running and waiting for connection ...")
+            print("Local Server is running and waiting for connection ...")
             client_socket, address = server.accept()
-            print(f"New Client {address} is established.")
+            print(f"New Client {address} is established with local Server.")
             
             client = Client(client_socket)
             
