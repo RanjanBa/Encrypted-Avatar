@@ -55,7 +55,13 @@ public class CanvasManager : MonoBehaviour
         m_lastActivePanels = new Stack<GameObject>();
         m_currentActivePanel = m_authenticationPanel;
 
-        GameManager.Instance.onLoggedIn += (_) =>
+        GameManager.Instance.onUserLoggedIn += (_) =>
+        {
+            m_userIdView.SetActive(true);
+            ActivatePanel(m_mainMenuPanel);
+        };
+
+        GameManager.Instance.onUserRegistered += (_) =>
         {
             m_userIdView.SetActive(true);
             ActivatePanel(m_mainMenuPanel);

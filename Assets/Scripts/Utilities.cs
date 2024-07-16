@@ -41,6 +41,7 @@ public static class Keys
     public const string CIPHER_TEXT = "cipher_text";
     public const string NONCE = "nonce";
     public const string REGISTRATION_INFO = "registration_info";
+    public const string LOGIN_INFO = "login_info";
     public const string USER_ID = "user_id";
     public const string FIRST_NAME = "first_name";
     public const string LAST_NAME = "last_name";
@@ -54,11 +55,12 @@ public static class MessageType
     public const string ENCRYPTED_TEXT = "encrypted_text";
 }
 
-public enum ProcessStatus
+public enum CallbackStatus
 {
     None,
-    Running,
-    Completed
+    Pending,
+    Success,
+    Failure
 }
 
 [Serializable]

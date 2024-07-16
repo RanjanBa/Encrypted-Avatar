@@ -19,17 +19,13 @@ public class RegistrationPanel : MonoBehaviour
     [SerializeField]
     private Button m_backBtn;
     [SerializeField]
-    private User m_userPrefab;
-    [SerializeField]
     private GameObject m_mainMenuPanel;
 
-    private User m_currentUser;
+    private UserHandler m_userHandler;
 
-    private Transform m_usersContainer;
 
     private void Start()
     {
-        m_usersContainer = new GameObject("Root").transform;
         m_registerBtn.onClick.AddListener(() =>
         {
             if (m_firstNameInputField.text.Length < 5)
@@ -57,7 +53,7 @@ public class RegistrationPanel : MonoBehaviour
                 return;
             }
 
-            GameManager.Instance.RegisterNewUser(m_firstNameInputField.text, m_lastNameInputField.text, m_userNameInputField.text, m_passwordInputField.text, m_currentUser);
+            GameManager.Instance.RegisterNewUser(m_firstNameInputField.text, m_lastNameInputField.text, m_userNameInputField.text, m_passwordInputField.text, m_userHandler);
             m_registerBtn.interactable = false;
             m_backBtn.interactable = false;
         });
@@ -67,24 +63,23 @@ public class RegistrationPanel : MonoBehaviour
     {
         m_registerBtn.interactable = true;
         m_backBtn.interactable = true;
-        m_currentUser = Instantiate(m_userPrefab);
-        m_currentUser.gameObject.name = "user";
-        m_currentUser.registrationProcess.Subscribe(OnUserRegistered);
+        m_userHandler = new UserHandler();
+        m_userHandler.registrationCallback.onSuccessCallbackDuringUpdateFrame += OnUserRegistered;
+        GameManager.Instance.ConnectUserHandlerWithServer(m_userHandler);
     }
 
     private void OnDisable()
     {
-        if (m_currentUser != null)
+        if (m_userHandler != null && !m_userHandler.IsLoggedIn)
         {
-            m_currentUser.registrationProcess.Unsubscribe(OnUserRegistered);
-            Destroy(m_currentUser.gameObject);
+            m_userHandler.Disconnect();
         }
+        m_userHandler = null;
     }
 
     private void OnUserRegistered(string _userId)
     {
-        m_currentUser.transform.SetParent(m_usersContainer);
-        m_currentUser = null;
+        GameManager.Instance.AddRegisteredUser(m_userHandler);
         CanvasManager.Instance.ActivatePanel(m_mainMenuPanel);
     }
 }

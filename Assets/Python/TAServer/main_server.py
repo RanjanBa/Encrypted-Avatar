@@ -121,7 +121,7 @@ def logInUser(client : Client, parsedMsg : dict):
     password = login_info[Keys.PASSWORD]
     
     info : dict[str, str] = {}
-    info[Keys.INSTRUCTION.value] = Instructions.REGISTER_USER.value
+    info[Keys.INSTRUCTION.value] = Instructions.LOGIN_USER.value
     
     for user in registered_users:
         if user.user_name == user_name and user.password == password:
@@ -131,10 +131,10 @@ def logInUser(client : Client, parsedMsg : dict):
             sendEncryptedMessageToClient(client, msg)
             return
     
-    info[Keys.ERROR.value] = "username and password is incorrect..."
+    info[Keys.ERROR.value] = "username and password dont match..."
     msg = json.dumps(info)
     sendEncryptedMessageToClient(client, msg)
-    print("username and password is incorrect...")
+    print("username and password dont match...")
     
 
 def registerNewUser(client : Client, parsedMsg : dict):

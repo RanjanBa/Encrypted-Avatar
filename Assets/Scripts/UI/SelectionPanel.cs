@@ -34,12 +34,12 @@ public class SelectionPanel : MonoBehaviour
 
         if (m_selectionType == SelectionType.Avatar)
         {
-            GameManager.Instance.CurrentlySelectedUser.getAllAvatarsProcess.Subscribe(OnAllAvatarsRetrieved);
+            GameManager.Instance.CurrentlySelectedUser.UserHandler.getAllAvatarsCallback += OnAllAvatarsRetrieved;
             GameManager.Instance.GetAllMyAvatars();
         }
         else
         {
-            GameManager.Instance.CurrentlySelectedUser.getAllWorldsProcess.Subscribe(OnAllWorldsRetrieved);
+            GameManager.Instance.CurrentlySelectedUser.UserHandler.getAllWorldsCallback += OnAllWorldsRetrieved;
             GameManager.Instance.GetAllWorlds();
         }
     }
