@@ -8,12 +8,15 @@ public class UserHandler
     private string m_publicKey;
     private string m_serverPublicKey;
     private string m_userId;
+    private bool m_isConnectedToLocalServer;
+    private bool m_isConnectedToMainServer;
 
+    public bool IsConnected => m_isConnectedToLocalServer && m_isConnectedToMainServer;
     public string UserId => m_userId;
     public bool IsLoggedIn => !string.IsNullOrEmpty(m_userId) && !string.IsNullOrWhiteSpace(m_userId);
 
-    private Client m_mainServerClient;
-    private LocalClient m_localServerClient;
+    private readonly Client m_mainServerClient;
+    private readonly LocalClient m_localServerClient;
 
     public CallbackHandler<string> logInCallback;
     public CallbackHandler<string> registrationCallback;
@@ -37,6 +40,16 @@ public class UserHandler
         getAllWorldsCallback = new CallbackHandler<List<WorldInfo>>();
         worldJoinnedCallback = new CallbackHandler<AvatarAndWorldInfo>();
         messageReceivedCallback = new CallbackHandler<Dictionary<string, string>>();
+
+        m_mainServerClient.onConnectedWithServer += () =>
+        {
+            m_isConnectedToMainServer = true;
+        };
+
+        m_localServerClient.onConnectedWithServer += () =>
+        {
+            m_isConnectedToLocalServer = true;
+        };
 
         worldJoinnedCallback.onSuccessCallbackDuringUpdateFrame += (_joinInfo) =>
         {
@@ -68,7 +81,7 @@ public class UserHandler
         {
             ParseMessage(_info);
         };
-        messageReceivedCallback.onSuccessCallbackDuringUpdateFrame += (_) => {};
+        messageReceivedCallback.onSuccessCallbackDuringUpdateFrame += (_) => { };
     }
 
     public void ConnectMainServer(string _ipAddress, int _port)
@@ -100,47 +113,10 @@ public class UserHandler
         messageReceivedCallback.ChangeToPending();
     }
 
-    private void OnUserRegistered(string _usedId)
-    {
-        m_userId = _usedId;
-        registrationCallback.ChangeToSuccess(_usedId);
-    }
-
-    private void OnUserLoggedIn(string _usedId)
-    {
-        m_userId = _usedId;
-        logInCallback.ChangeToSuccess(_usedId);
-    }
-
-    private void OnAvatarCreated(AvatarInfo _avatarInfo)
-    {
-        avatarCreationCallback.ChangeToSuccess(_avatarInfo);
-    }
-
-    private void OnWorldCreated(WorldInfo _worldInfo)
-    {
-        worldCreationCallback.ChangeToSuccess(_worldInfo);
-    }
-
-    private void OnAllAvatarsRetrieved(List<AvatarInfo> _avatars)
-    {
-        getAllAvatarsCallback.ChangeToSuccess(_avatars);
-    }
-
-    private void OnAllWorldsRetrieved(List<WorldInfo> _worlds)
-    {
-        getAllWorldsCallback.ChangeToSuccess(_worlds);
-    }
-
-    private void OnWorldJoinned(AvatarAndWorldInfo _joinInfo)
-    {
-        worldJoinnedCallback.ChangeToSuccess(_joinInfo);
-    }
-
-    private void OnMessageReceived(Dictionary<string, string> _msgInfo)
-    {
-        messageReceivedCallback.ChangeToSuccess(_msgInfo);
-    }
+    // private void OnMessageReceived(Dictionary<string, string> _msgInfo)
+    // {
+    //     messageReceivedCallback.ChangeToSuccess(_msgInfo);
+    // }
 
     private void ParseMessage(string _message)
     {
@@ -186,15 +162,6 @@ public class UserHandler
 
     private void DecodeInstruction(string _msgCode, Dictionary<string, string> _parsedMsg)
     {
-        if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
-        {
-#if UNITY_EDITOR
-            Debug.Log(_errorMsg);
-#endif
-            CanvasManager.Instance.toastMessagesQueue.Enqueue(new ToastMsg(_msgCode + " -> " + _errorMsg, 1f));
-            return;
-        }
-
         if (_msgCode == Instructions.SERVER_KEY)
         {
             m_serverPublicKey = _parsedMsg[Keys.PUBLIC_KEY];
@@ -208,43 +175,90 @@ public class UserHandler
         }
         else if (_msgCode == Instructions.REGISTER_USER)
         {
-            string _userId = _parsedMsg[Keys.USER_ID];
-            OnUserRegistered(_userId);
+            if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
+            {
 #if UNITY_EDITOR
-            Debug.Log("User ID -> " + _userId);
+                Debug.Log(_errorMsg);
+#endif
+                CanvasManager.Instance.toastMessagesQueue.Enqueue(new ToastMsg(_msgCode + " -> " + _errorMsg, 1f));
+                registrationCallback.ChangeToFailure(_errorMsg);
+                return;
+            }
+            m_userId = _parsedMsg[Keys.USER_ID];
+            registrationCallback.ChangeToSuccess(m_userId);
+#if UNITY_EDITOR
+            Debug.Log("User ID -> " + m_userId);
 #endif
 
         }
         else if (_msgCode == Instructions.LOGIN_USER)
         {
-            string _userId = _parsedMsg[Keys.USER_ID];
-            OnUserLoggedIn(_userId);
+            if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
+            {
 #if UNITY_EDITOR
-            Debug.Log("User ID -> " + _userId);
+                Debug.Log(_errorMsg);
+#endif
+                CanvasManager.Instance.toastMessagesQueue.Enqueue(new ToastMsg(_msgCode + " -> " + _errorMsg, 1f));
+                logInCallback.ChangeToFailure(_errorMsg);
+                return;
+            }
+            m_userId = _parsedMsg[Keys.USER_ID];
+            logInCallback.ChangeToSuccess(m_userId);
+#if UNITY_EDITOR
+            Debug.Log("User ID -> " + m_userId);
 #endif
         }
         else if (_msgCode == Instructions.CREATE_AVATAR)
         {
+            if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
+            {
+#if UNITY_EDITOR
+                Debug.Log(_errorMsg);
+#endif
+                CanvasManager.Instance.toastMessagesQueue.Enqueue(new ToastMsg(_msgCode + " -> " + _errorMsg, 1f));
+                avatarCreationCallback.ChangeToFailure(_errorMsg);
+                return;
+            }
+
             AvatarInfo _avatarInfo = new AvatarInfo()
             {
                 avatarId = _parsedMsg[Keys.AVATAR_ID],
                 avatarName = _parsedMsg[Keys.AVATAR_NAME]
             };
-            OnAvatarCreated(_avatarInfo);
-            // onAvatarCreated?.Invoke(_avatarInfo);
+
+            avatarCreationCallback.ChangeToSuccess(_avatarInfo);
         }
         else if (_msgCode == Instructions.CREATE_WORLD)
         {
+            if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
+            {
+#if UNITY_EDITOR
+                Debug.Log(_errorMsg);
+#endif
+                CanvasManager.Instance.toastMessagesQueue.Enqueue(new ToastMsg(_msgCode + " -> " + _errorMsg, 1f));
+                worldCreationCallback.ChangeToFailure(_errorMsg);
+                return;
+            }
+
             WorldInfo _worldInfo = new WorldInfo()
             {
                 worldId = _parsedMsg[Keys.WORLD_ID],
                 worldName = _parsedMsg[Keys.WORLD_NAME]
             };
-            OnWorldCreated(_worldInfo);
-            // onWorldCreated?.Invoke(_worldInfo);
+            worldCreationCallback.ChangeToSuccess(_worldInfo);
         }
         else if (_msgCode == Instructions.CLIENT_ALL_AVATARS)
         {
+            if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
+            {
+#if UNITY_EDITOR
+                Debug.Log(_errorMsg);
+#endif
+                CanvasManager.Instance.toastMessagesQueue.Enqueue(new ToastMsg(_msgCode + " -> " + _errorMsg, 1f));
+                getAllAvatarsCallback.ChangeToFailure(_errorMsg);
+                return;
+            }
+
             List<AvatarInfo> _avatars = new List<AvatarInfo>();
             int idx = 0;
             while (true)
@@ -266,11 +280,20 @@ public class UserHandler
                     break;
                 }
             }
-            OnAllAvatarsRetrieved(_avatars);
-            // onAllAvatarsRetrieved?.Invoke(_avatars);
+            getAllAvatarsCallback.ChangeToSuccess(_avatars);
         }
         else if (_msgCode == Instructions.ALL_WORLDS)
         {
+            if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
+            {
+#if UNITY_EDITOR
+                Debug.Log(_errorMsg);
+#endif
+                CanvasManager.Instance.toastMessagesQueue.Enqueue(new ToastMsg(_msgCode + " -> " + _errorMsg, 1f));
+                getAllWorldsCallback.ChangeToFailure(_errorMsg);
+                return;
+            }
+
             List<WorldInfo> _worlds = new List<WorldInfo>();
             int idx = 0;
             while (true)
@@ -292,11 +315,20 @@ public class UserHandler
                     break;
                 }
             }
-            OnAllWorldsRetrieved(_worlds);
-            // onAllWorldsRetrieved?.Invoke(_worlds);
+            getAllWorldsCallback.ChangeToSuccess(_worlds);
         }
         else if (_msgCode == Instructions.JOIN_WORLD)
         {
+            if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
+            {
+#if UNITY_EDITOR
+                Debug.Log(_errorMsg);
+#endif
+                CanvasManager.Instance.toastMessagesQueue.Enqueue(new ToastMsg(_msgCode + " -> " + _errorMsg, 1f));
+                worldJoinnedCallback.ChangeToFailure(_errorMsg);
+                return;
+            }
+
             AvatarAndWorldInfo _joinInfo = new AvatarAndWorldInfo()
             {
                 worldInfo = new WorldInfo()
@@ -312,11 +344,20 @@ public class UserHandler
                     avatarViewId = _parsedMsg[Keys.AVATAR_VIEW_ID]
                 }
             };
-            OnWorldJoinned(_joinInfo);
-            // onWorldJoined?.Invoke(_joinInfo);
+            worldJoinnedCallback.ChangeToSuccess(_joinInfo);
         }
         else if (_msgCode == Instructions.WORLD_ALL_AVATARS)
         {
+            if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
+            {
+#if UNITY_EDITOR
+                Debug.Log(_errorMsg);
+#endif
+                CanvasManager.Instance.toastMessagesQueue.Enqueue(new ToastMsg(_msgCode + " -> " + _errorMsg, 1f));
+                getAllAvatarsCallback.ChangeToFailure(_errorMsg);
+                return;
+            }
+
             List<AvatarInfo> _avatars = new List<AvatarInfo>();
             int idx = 0;
             while (true)
@@ -338,25 +379,35 @@ public class UserHandler
                     break;
                 }
             }
-            OnAllAvatarsRetrieved(_avatars);
-            // onAllAvatarsRetrieved?.Invoke(_avatars);
+            getAllAvatarsCallback.ChangeToSuccess(_avatars);
         }
         else if (_msgCode == Instructions.SEND_MSG)
         {
+            if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
+            {
+#if UNITY_EDITOR
+                Debug.Log(_errorMsg);
+#endif
+                CanvasManager.Instance.toastMessagesQueue.Enqueue(new ToastMsg(_msgCode + " -> " + _errorMsg, 1f));
+                messageReceivedCallback.ChangeToFailure(_errorMsg);
+                return;
+            }
+
             Dictionary<string, string> _msgInfo = new Dictionary<string, string>() {
                         {Keys.WORLD_ID, _parsedMsg[Keys.WORLD_ID]},
                         {Keys.AVATAR_ID, _parsedMsg[Keys.AVATAR_ID]},
                         {Keys.MESSAGE, _parsedMsg[Keys.MESSAGE]}
                     };
-            OnMessageReceived(_msgInfo);
-            // onMessageRecieved?.Invoke(_msgInfo);
+
+            messageReceivedCallback.ChangeToSuccess(_msgInfo);
         }
-#if UNITY_EDITOR
         else
         {
+#if UNITY_EDITOR
             Debug.Log("Message is sent without proper instruction -> " + _msgCode);
-        }
 #endif
+            CanvasManager.Instance.toastMessagesQueue.Enqueue(new ToastMsg("Message is sent without proper instruction -> " + _msgCode, 1f));
+        }
     }
 
     private void EncryptMsg(string _message, string _publicKey)

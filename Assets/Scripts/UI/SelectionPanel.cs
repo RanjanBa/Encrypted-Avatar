@@ -34,12 +34,12 @@ public class SelectionPanel : MonoBehaviour
 
         if (m_selectionType == SelectionType.Avatar)
         {
-            GameManager.Instance.CurrentlySelectedUser.UserHandler.getAllAvatarsCallback += OnAllAvatarsRetrieved;
+            GameManager.Instance.CurrentlySelectedUser.UserHandler.getAllAvatarsCallback.onSuccessCallbackDuringUpdateFrame += OnAllAvatarsRetrieved;
             GameManager.Instance.GetAllMyAvatars();
         }
         else
         {
-            GameManager.Instance.CurrentlySelectedUser.UserHandler.getAllWorldsCallback += OnAllWorldsRetrieved;
+            GameManager.Instance.CurrentlySelectedUser.UserHandler.getAllWorldsCallback.onSuccessCallbackDuringUpdateFrame += OnAllWorldsRetrieved;
             GameManager.Instance.GetAllWorlds();
         }
     }
@@ -56,11 +56,11 @@ public class SelectionPanel : MonoBehaviour
 
         if (m_selectionType == SelectionType.Avatar)
         {
-            GameManager.Instance.CurrentlySelectedUser.getAllAvatarsProcess.Unsubscribe(OnAllAvatarsRetrieved);
+            GameManager.Instance.CurrentlySelectedUser.UserHandler.getAllAvatarsCallback.onSuccessCallbackDuringUpdateFrame -= OnAllAvatarsRetrieved;
         }
         else
         {
-            GameManager.Instance.CurrentlySelectedUser.getAllWorldsProcess.Unsubscribe(OnAllWorldsRetrieved);
+            GameManager.Instance.CurrentlySelectedUser.UserHandler.getAllWorldsCallback.onSuccessCallbackDuringUpdateFrame -= OnAllWorldsRetrieved;
         }
     }
 

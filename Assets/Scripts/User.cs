@@ -7,6 +7,7 @@ public class User : MonoBehaviour
     private UserHandler m_userHandler;
 
     public UserHandler UserHandler => m_userHandler;
+    public string UserId => m_userHandler.UserId;
 
     private void Update()
     {

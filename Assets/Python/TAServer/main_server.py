@@ -14,6 +14,7 @@ import kyber_encrypt_decrypt
 from user_info import UserInfo
 import json
 import uuid
+import hashlib
 
 DATA_BUFFER_SIZE = 10240
 host = "127.0.0.1"
@@ -117,32 +118,36 @@ def encryptMsg(msg : str, key : str) -> dict[str, str]:
 
 def logInUser(client : Client, parsedMsg : dict):
     login_info = json.loads(parsedMsg[Keys.LOGIN_INFO.value])
-    user_name = login_info[Keys.USER_NAME]
-    password = login_info[Keys.PASSWORD]
+    user_name = login_info[Keys.USER_NAME.value]
+    password = login_info[Keys.PASSWORD.value]
     
     info : dict[str, str] = {}
     info[Keys.INSTRUCTION.value] = Instructions.LOGIN_USER.value
     
     for user in registered_users:
         if user.user_name == user_name and user.password == password:
-            user_id = str(uuid.uuid5(uuid.NAMESPACE_X500, user_name))
+            ### Generate SHA256 hash id
+            user_password = user_name + ':' + password
+            result_hash = hashlib.sha256(user_password.encode())
+            user_id = result_hash.hexdigest()
+
             info[Keys.USER_ID.value] = user_id
             msg = json.dumps(info)
             sendEncryptedMessageToClient(client, msg)
             return
     
-    info[Keys.ERROR.value] = "username and password dont match..."
+    info[Keys.ERROR.value] = "username and password don't match..."
     msg = json.dumps(info)
     sendEncryptedMessageToClient(client, msg)
     print("username and password dont match...")
     
 
-def registerNewUser(client : Client, parsedMsg : dict):
-    registration_info = json.loads(parsedMsg[Keys.REGISTRATION_INFO.value])
-    user_name = registration_info[Keys.USER_NAME]
-    first_name = registration_info[Keys.FIRST_NAME]
-    last_name = registration_info[Keys.LAST_NAME]
-    password = registration_info[Keys.PASSWORD]
+def registerNewUser(client : Client, parsedMsg : dict[str, str]):
+    registration_info : dict[str, str] = json.loads(parsedMsg[Keys.REGISTRATION_INFO.value])
+    user_name = registration_info[Keys.USER_NAME.value]
+    first_name = registration_info[Keys.FIRST_NAME.value]
+    last_name = registration_info[Keys.LAST_NAME.value]
+    password = registration_info[Keys.PASSWORD.value]
     
     info : dict[str, str] = {}
     info[Keys.INSTRUCTION.value] = Instructions.REGISTER_USER.value
@@ -157,7 +162,11 @@ def registerNewUser(client : Client, parsedMsg : dict):
     user = UserInfo(first_name, last_name, user_name, password)
     registered_users.add(user)
     
-    user_id = str(uuid.uuid5(uuid.NAMESPACE_X500, user_name))
+    ### Generate SHA256 hash id
+    user_password = user_name + ':' + password
+    result_hash = hashlib.sha256(user_password.encode())
+    user_id = result_hash.hexdigest()
+    
     info[Keys.USER_ID.value] = user_id
     msg = json.dumps(info)
     sendEncryptedMessageToClient(client, msg)

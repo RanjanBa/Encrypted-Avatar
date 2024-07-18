@@ -27,7 +27,7 @@ public class GameManager : MonoBehaviour
     private List<IconWithID> m_defaultWorlds = new List<IconWithID>();
 
     private Transform m_usersContainer;
-    private List<User> m_registeredUsers;
+    private List<User> m_loggedInUsers;
 
     private User m_selectedUser;
     private AvatarInfo m_selectedAvatar;
@@ -93,12 +93,24 @@ public class GameManager : MonoBehaviour
         onWorldJoinned?.Invoke(_info);
     }
 
-    public void AddRegisteredUser(UserHandler _userHandler)
+    public User CreateLoggedInUser(UserHandler _userHandler)
     {
-        m_registeredUsers ??= new List<User>();
+        m_loggedInUsers ??= new List<User>();
+
+        foreach (var _tmp in m_loggedInUsers)
+        {
+            if (_userHandler.UserId == _tmp.UserId)
+            {
+                _tmp.UserHandler?.Disconnect();
+                _tmp.AssignUserHandler(_userHandler);
+                return _tmp;
+            }
+        }
+
         User _user = Instantiate(m_userPrefab, m_usersContainer);
         _user.AssignUserHandler(_userHandler);
-        m_registeredUsers.Add(_user);
+        m_loggedInUsers.Add(_user);
+        return _user;
     }
 
     public void OnMessageReceived(Dictionary<string, string> _msgInfo)
@@ -152,15 +164,15 @@ public class GameManager : MonoBehaviour
 
         if (CurrentlySelectedUser != null)
         {
-            CurrentlySelectedUser.UserHandler.avatarCreationCallback.onSuccessCallbackDuringUpdateFrame += OnAvatarCreated;
-            CurrentlySelectedUser.UserHandler.worldCreationCallback.onSuccessCallbackDuringUpdateFrame += OnWorldCreated;
-            CurrentlySelectedUser.UserHandler.worldJoinnedCallback.onSuccessCallbackDuringUpdateFrame += OnWorldJoinned;
+            CurrentlySelectedUser.UserHandler.avatarCreationCallback.onSuccessCallbackDuringUpdateFrame -= OnAvatarCreated;
+            CurrentlySelectedUser.UserHandler.worldCreationCallback.onSuccessCallbackDuringUpdateFrame -= OnWorldCreated;
+            CurrentlySelectedUser.UserHandler.worldJoinnedCallback.onSuccessCallbackDuringUpdateFrame -= OnWorldJoinned;
         }
 
         CurrentlySelectedUser = _user;
-        CurrentlySelectedUser.UserHandler.avatarCreationCallback.onSuccessCallbackDuringUpdateFrame -= OnAvatarCreated;
-        CurrentlySelectedUser.UserHandler.worldCreationCallback.onSuccessCallbackDuringUpdateFrame -= OnWorldCreated;
-        CurrentlySelectedUser.UserHandler.worldJoinnedCallback.onSuccessCallbackDuringUpdateFrame -= OnWorldJoinned;
+        CurrentlySelectedUser.UserHandler.avatarCreationCallback.onSuccessCallbackDuringUpdateFrame += OnAvatarCreated;
+        CurrentlySelectedUser.UserHandler.worldCreationCallback.onSuccessCallbackDuringUpdateFrame += OnWorldCreated;
+        CurrentlySelectedUser.UserHandler.worldJoinnedCallback.onSuccessCallbackDuringUpdateFrame += OnWorldJoinned;
         onSelectedUserChanged?.Invoke(CurrentlySelectedUser);
     }
 
@@ -206,7 +218,7 @@ public class GameManager : MonoBehaviour
 
     public void LogOut()
     {
-        CurrentlySelectedUser = null;
+        UpdateSelectedUser(null);
     }
 
     public void CreateAvatar(string _avatarName, string _viewId)

@@ -94,7 +94,7 @@ public class AvatarSelectionPanel : MonoBehaviour
             return;
         }
 
-        GameManager.Instance.CurrentlySelectedUser.getAllAvatarsProcess.Subscribe(OnAvatarsRetrieved);
+        GameManager.Instance.CurrentlySelectedUser.UserHandler.getAllAvatarsCallback.onSuccessCallbackDuringUpdateFrame += OnAvatarsRetrieved;
         StartCoroutine(GetAvatars());
     }
 
@@ -107,7 +107,7 @@ public class AvatarSelectionPanel : MonoBehaviour
 #endif
             return;
         }
-        GameManager.Instance.CurrentlySelectedUser.getAllAvatarsProcess.Unsubscribe(OnAvatarsRetrieved);
+        GameManager.Instance.CurrentlySelectedUser.UserHandler.getAllAvatarsCallback.onSuccessCallbackDuringUpdateFrame -= OnAvatarsRetrieved;
     }
 
     private IEnumerator GetAvatars()

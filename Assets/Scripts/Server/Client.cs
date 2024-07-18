@@ -76,6 +76,7 @@ public class Client
 #if UNITY_EDITOR
             Debug.LogError("SocketException : " + e.ToString());
 #endif
+            CanvasManager.Instance.toastMessagesQueue.Enqueue(new ToastMsg(e.ToString().Truncate(130), 1f));
         }
     }
 
