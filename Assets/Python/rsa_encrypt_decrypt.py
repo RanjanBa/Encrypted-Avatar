@@ -23,9 +23,9 @@ def encrypt(msg : str, public_key : bytes):
     cipher_aes = AES.new(session_key, AES.MODE_EAX)
     ciphertext, tag = cipher_aes.encrypt_and_digest(encoded_msg)
     
-    return (enc_session_key, tag, ciphertext, cipher_aes.nonce)
+    return (enc_session_key, ciphertext, tag, cipher_aes.nonce)
     
-def decrypt(private_key : bytes, enc_session_key, tag, ciphertext, nonce):
+def decrypt(private_key : bytes, enc_session_key, ciphertext, tag, nonce):
     private_key = RSA.import_key(private_key)
 
     # Decrypt the session key with the private RSA key
@@ -40,8 +40,8 @@ def decrypt(private_key : bytes, enc_session_key, tag, ciphertext, nonce):
 def main():
     pb_key, pvt_key = getKey()
     
-    enc_session_key, tag, ciphertext, nonce =  encrypt("Hello world. This is Cryptography test.", pb_key)
-    decrypt(pvt_key, enc_session_key, tag, ciphertext, nonce)
+    enc_session_key, ciphertext, tag, nonce =  encrypt("Hello world. This is Cryptography test.", pb_key)
+    decrypt(pvt_key, enc_session_key, ciphertext, tag, nonce)
 
 if __name__ == "__main__":
     main()

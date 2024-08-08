@@ -36,9 +36,9 @@ public static class Keys
     public const string RECIEVER_ID = "receiver_id";
     public const string PUBLIC_KEY = "public_key";
     public const string PRIVATE_KEY = "private_key";
-    public const string ENC_SESSION_KEY = "enc_session_key";
-    public const string TAG = "tag";
+    public const string ENCAPSULATED_KEY = "encapsulated_key";
     public const string CIPHER_TEXT = "cipher_text";
+    public const string TAG = "tag";
     public const string NONCE = "nonce";
     public const string REGISTRATION_INFO = "registration_info";
     public const string LOGIN_INFO = "login_info";

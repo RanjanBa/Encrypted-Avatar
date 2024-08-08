@@ -46,7 +46,7 @@ def parseMessage(msg : str):
     elif msg_code == Instructions.ENCRYPT_MSG.value:
         global encrypted_msg
         encrypted_msg = {}
-        encrypted_msg[Keys.ENC_SESSION_KEY.value] = parsedMsg[Keys.ENC_SESSION_KEY.value]
+        encrypted_msg[Keys.ENCAPSULATED_KEY.value] = parsedMsg[Keys.ENCAPSULATED_KEY.value]
         encrypted_msg[Keys.TAG.value] = parsedMsg[Keys.TAG.value]
         encrypted_msg[Keys.CIPHER_TEXT.value] = parsedMsg[Keys.CIPHER_TEXT.value]
         encrypted_msg[Keys.NONCE.value] = parsedMsg[Keys.NONCE.value]

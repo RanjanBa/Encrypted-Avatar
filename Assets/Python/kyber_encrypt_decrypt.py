@@ -11,6 +11,7 @@ def getKey():
     
     return (public_key, private_key)
 
+
 def encrypt(msg : str, public_key : bytes): 
     cipher_encrypt, shared_key = Kyber1024.enc(public_key)
 
@@ -18,10 +19,9 @@ def encrypt(msg : str, public_key : bytes):
     encoded_msg = msg.encode("utf-8")
     cipher_aes = AES.new(shared_key, AES.MODE_EAX)
     cipher_text, tag = cipher_aes.encrypt_and_digest(encoded_msg)
-
-    return (cipher_encrypt, tag, cipher_text, cipher_aes.nonce)
+    return (cipher_encrypt, cipher_text, tag, cipher_aes.nonce)
     
-def decrypt(private_key : bytes, cipher_encrypt : bytes, tag : bytes, cipher_text : bytes, nonce : bytes):
+def decrypt(private_key : bytes, cipher_encrypt : bytes, cipher_text : bytes, tag : bytes, nonce : bytes):
     shared_key = Kyber1024.dec(cipher_encrypt, private_key)
     # Decrypt the data with the AES session key
     cipher_aes = AES.new(shared_key, AES.MODE_EAX, nonce)
@@ -39,13 +39,14 @@ def main():
                 msg += " "
 
     pb_key, pvt_key = getKey()
-    cipher_encrypt, tag, cipher_text, nonce =  encrypt(msg, pb_key)
-    # print(cipher_encrypt)
-    decode_msg = decrypt(pvt_key, cipher_encrypt, tag, cipher_text, nonce)
+    encapsulated_text, cipher_text, tag, nonce =  encrypt(msg, pb_key)
+    # print(encapsulated_text)
+    decode_msg = decrypt(pvt_key, encapsulated_text, cipher_text, tag, nonce)
     print("cipher text : ")
     print(bytes.hex(cipher_text))
     print("Decrypted msg...")
     print(decode_msg)
+
 
 if __name__ == "__main__":
     main()

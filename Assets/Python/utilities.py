@@ -33,7 +33,7 @@ class Keys(Enum):
     RECIEVER_ID = "receiver_id"
     PUBLIC_KEY = "public_key"
     PRIVATE_KEY = "private_key"
-    ENC_SESSION_KEY = "enc_session_key"
+    ENCAPSULATED_KEY = "encapsulated_key"
     TAG = "tag"
     CIPHER_TEXT = "cipher_text"
     NONCE = "nonce"

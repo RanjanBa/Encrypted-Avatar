@@ -40,11 +40,11 @@ public class LocalClient
 #if UNITY_EDITOR
                         if (_serverMsg.Length != 0)
                         {
-                            Debug.Log(m_localClient.Client.ToString() + " received msg from server : " + _serverMsg);
+                            Debug.Log(m_localClient.Client.ToString() + " received msg from local server : " + _serverMsg);
                         }
                         else
                         {
-                            Debug.Log(m_localClient.Client.ToString() + " received no msg from server.");
+                            Debug.Log(m_localClient.Client.ToString() + " received no msg from local server.");
                             continue;
                         }
 #endif
@@ -140,25 +140,25 @@ public class LocalClient
 
     private void ParseEncryptedMessage(Dictionary<string, string> _parsedMsg)
     {
-#if UNITY_EDITOR
-        Debug.Log("Parsing Encrypted Msg...");
-#endif
+        // #if UNITY_EDITOR
+        //         Debug.Log("Parsing Encrypted Msg...");
+        // #endif
         try
         {
-            string encSessionKey = _parsedMsg[Keys.ENC_SESSION_KEY];
+            string encSessionKey = _parsedMsg[Keys.ENCAPSULATED_KEY];
             string tag = _parsedMsg[Keys.TAG];
             string cipherText = _parsedMsg[Keys.CIPHER_TEXT];
             string nonce = _parsedMsg[Keys.NONCE];
 
             Dictionary<string, string> _encryptedMsg = new Dictionary<string, string>() {
-                {Keys.ENC_SESSION_KEY, encSessionKey},
+                {Keys.ENCAPSULATED_KEY, encSessionKey},
                 {Keys.TAG, tag},
                 {Keys.CIPHER_TEXT, cipherText},
                 {Keys.NONCE, nonce}
             };
-#if UNITY_EDITOR
-            Debug.Log("Parsing Encrypted Msg Completed...");
-#endif
+            // #if UNITY_EDITOR
+            //             Debug.Log("Parsing Encrypted Msg Completed...");
+            // #endif
             onEncryptedMsgReceived?.Invoke(_encryptedMsg);
         }
 #if UNITY_EDITOR
@@ -172,9 +172,9 @@ public class LocalClient
 
     private void ParseDecryptedMessage(Dictionary<string, string> _parsedMsg)
     {
-#if UNITY_EDITOR
-        Debug.Log("Parsing Decrypted Msg...");
-#endif
+        // #if UNITY_EDITOR
+        //         Debug.Log("Parsing Decrypted Msg...");
+        // #endif
 
         if (!_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
         {
@@ -183,11 +183,14 @@ public class LocalClient
 #endif
             return;
         }
-#if UNITY_EDITOR
-        Debug.Log("Parsing Decrypted Msg Completed...");
-#endif
+        // #if UNITY_EDITOR
+        //         Debug.Log("Parsing Decrypted Msg Completed...");
+        // #endif
 
         onDecryptedMsgReceived?.Invoke(_msg);
+#if UNITY_EDITOR
+        Debug.Log("Decrypting Msg Completed...");
+#endif
     }
 
     public void ConnectToServer(string _ipAddress, int _port)
@@ -229,7 +232,7 @@ public class LocalClient
         byte[] _data = Encoding.UTF8.GetBytes(_message);
         m_stream.Write(_data, 0, _data.Length);
 #if UNITY_EDITOR
-        Debug.Log(m_localClient.Client.ToString() + " sent message to server : " + _message);
+        Debug.Log(m_localClient.Client.ToString() + " sent message to local server : " + _message);
 #endif
     }
 

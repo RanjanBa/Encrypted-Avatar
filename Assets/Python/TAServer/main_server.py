@@ -84,9 +84,9 @@ def DecodeInstruction(client : Client, parsedMsg : dict):
 
 def decryptMsg(client : Client, parsedMsg : dict):
     print("Decrypting msg...")
-    enc_session_key = parsedMsg[Keys.ENC_SESSION_KEY.value]
-    tag = parsedMsg[Keys.TAG.value]
+    enc_session_key = parsedMsg[Keys.ENCAPSULATED_KEY.value]
     cipher_text = parsedMsg[Keys.CIPHER_TEXT.value]
+    tag = parsedMsg[Keys.TAG.value]
     nonce = parsedMsg[Keys.NONCE.value]
 
     if private_key == "" or enc_session_key == "" or tag == "" or cipher_text == "" or nonce == "":
@@ -98,7 +98,7 @@ def decryptMsg(client : Client, parsedMsg : dict):
     cipher_text = bytes.fromhex(cipher_text)
     nonce = bytes.fromhex(nonce)
     
-    decrypted_msg = kyber_encrypt_decrypt.decrypt(private_key, enc_session_key, tag, cipher_text, nonce)
+    decrypted_msg = kyber_encrypt_decrypt.decrypt(private_key, enc_session_key, cipher_text, tag, nonce)
     print("decrypted msg", end= " : ")
     print(decrypted_msg)
     parsedMsg : dict[str, str] = json.loads(decrypted_msg)
@@ -106,12 +106,12 @@ def decryptMsg(client : Client, parsedMsg : dict):
 
 
 def encryptMsg(msg : str, key : str) -> dict[str, str]:
-    enc_session_key, tag, cipher_text, nonce = kyber_encrypt_decrypt.encrypt(msg, bytes.fromhex(key))  
+    enc_session_key, cipher_text, tag, nonce = kyber_encrypt_decrypt.encrypt(msg, bytes.fromhex(key))  
     info : dict[str, str] = {}
     info[Keys.MSG_TYPE.value] = MessageType.ENCRYPTED_TEXT.value
-    info[Keys.ENC_SESSION_KEY.value] = bytes.hex(enc_session_key)
-    info[Keys.TAG.value] = bytes.hex(tag)
+    info[Keys.ENCAPSULATED_KEY.value] = bytes.hex(enc_session_key)
     info[Keys.CIPHER_TEXT.value] = bytes.hex(cipher_text)
+    info[Keys.TAG.value] = bytes.hex(tag)
     info[Keys.NONCE.value] = bytes.hex(nonce)
     return info
 
