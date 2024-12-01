@@ -4,9 +4,9 @@ using System.Net.Sockets;
 using System.Threading;
 using UnityEngine;
 
-public class Client
+public class ServerClient
 {
-    private const int m_DATA_BUFFER_SIZE = 10240;
+    private const int m_DATA_BUFFER_SIZE = 8192;
 
     private TcpClient m_client;
     private NetworkStream m_stream;
@@ -33,11 +33,11 @@ public class Client
 #if UNITY_EDITOR
                     if (_serverMsg.Length != 0)
                     {
-                        Debug.Log(m_client.Client.ToString() + " received msg from server : " + _serverMsg);
+                        Debug.Log(m_client.Client.ToString() + " received msg from main server : " + _serverMsg);
                     }
                     else
                     {
-                        Debug.Log(m_client.Client.ToString() + " received no msg from server.");
+                        Debug.Log(m_client.Client.ToString() + " received no msg from main server.");
                         continue;
                     }
 #endif
@@ -45,11 +45,10 @@ public class Client
                 }
             }
         }
-
         catch (SocketException e)
         {
 #if UNITY_EDITOR
-            Debug.LogError("SocketException : " + e.ToString());
+            Debug.LogError("Server SocketException : " + e.ToString());
 #endif
         }
     }
@@ -93,7 +92,7 @@ public class Client
         byte[] _data = Encoding.UTF8.GetBytes(_message);
         m_stream.Write(_data, 0, _data.Length);
 #if UNITY_EDITOR
-        Debug.Log(m_client.Client.ToString() + " sent message to server : " + _message);
+        Debug.Log(m_client.Client.ToString() + " client is sending message to server : " + _message);
 #endif
     }
 

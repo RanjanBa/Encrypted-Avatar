@@ -15,9 +15,7 @@ public class LocalClient
     private Thread m_receiveThread;
 
     public Action onConnectedWithServer;
-    public Action<string, string> onKeyGenerated;
-    public Action<Dictionary<string, string>> onEncryptedMsgReceived;
-    public Action<string> onDecryptedMsgReceived;
+    public Action<string> onMessageReceived;
 
     private void ListeningServerForMsg()
     {
@@ -48,7 +46,7 @@ public class LocalClient
                             continue;
                         }
 #endif
-                        ParseMessage(_serverMsg);
+                        onMessageReceived?.Invoke(_serverMsg);
                     }
                 }
             }
@@ -56,141 +54,9 @@ public class LocalClient
         catch (SocketException socketException)
         {
 #if UNITY_EDITOR
-            Debug.Log("Socket exception: " + socketException.ToString());
+            Debug.Log("Local Socket exception: " + socketException.ToString());
 #endif
         }
-    }
-
-    private void ParseMessage(string _message)
-    {
-        if (_message.Length == 0)
-        {
-            return;
-        }
-        try
-        {
-            Dictionary<string, string> _parsedMsg = JsonConvert.DeserializeObject<Dictionary<string, string>>(_message);
-            if (_parsedMsg.TryGetValue(Keys.INSTRUCTION, out string _msgCode))
-            {
-                if (_msgCode == Instructions.GENERATE_KEY)
-                {
-                    ParseKeys(_parsedMsg);
-                }
-                else if (_msgCode == Instructions.ENCRYPT_MSG)
-                {
-                    ParseEncryptedMessage(_parsedMsg);
-                }
-                else if (_msgCode == Instructions.DECRYPT_MSG)
-                {
-                    ParseDecryptedMessage(_parsedMsg);
-                }
-#if UNITY_EDITOR
-                else
-                {
-                    Debug.Log("Message is sent without proper instruction -> " + _msgCode);
-                }
-#endif
-            }
-#if UNITY_EDITOR
-            else
-            {
-                Debug.Log("No instruction is given with the msg...");
-                if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
-                {
-                    Debug.Log(_msg);
-                }
-            }
-#endif
-        }
-        catch (JsonReaderException e)
-        {
-#if UNITY_EDITOR
-            Debug.LogWarning("Json deserializatio error : " + e.ToString());
-#endif
-        }
-    }
-
-    private void ParseKeys(Dictionary<string, string> _parsedMsg)
-    {
-#if UNITY_EDITOR
-        Debug.Log("Parsing Public & Private Key...");
-#endif
-
-        if (!_parsedMsg.TryGetValue(Keys.PUBLIC_KEY, out string _publicKey))
-        {
-#if UNITY_EDITOR
-            Debug.Log("No Public Key is given in the msg.");
-#endif
-            return;
-        }
-
-        if (!_parsedMsg.TryGetValue(Keys.PRIVATE_KEY, out string _privateKey))
-        {
-#if UNITY_EDITOR
-            Debug.Log("No Private Key is given in the msg.");
-#endif
-            return;
-        }
-
-        onKeyGenerated?.Invoke(_publicKey, _privateKey);
-#if UNITY_EDITOR
-        Debug.Log("Parsing Public & Private Key Completed...");
-#endif
-    }
-
-    private void ParseEncryptedMessage(Dictionary<string, string> _parsedMsg)
-    {
-        // #if UNITY_EDITOR
-        //         Debug.Log("Parsing Encrypted Msg...");
-        // #endif
-        try
-        {
-            string encSessionKey = _parsedMsg[Keys.ENCAPSULATED_KEY];
-            string tag = _parsedMsg[Keys.TAG];
-            string cipherText = _parsedMsg[Keys.CIPHER_TEXT];
-            string nonce = _parsedMsg[Keys.NONCE];
-
-            Dictionary<string, string> _encryptedMsg = new Dictionary<string, string>() {
-                {Keys.ENCAPSULATED_KEY, encSessionKey},
-                {Keys.TAG, tag},
-                {Keys.CIPHER_TEXT, cipherText},
-                {Keys.NONCE, nonce}
-            };
-            // #if UNITY_EDITOR
-            //             Debug.Log("Parsing Encrypted Msg Completed...");
-            // #endif
-            onEncryptedMsgReceived?.Invoke(_encryptedMsg);
-        }
-#if UNITY_EDITOR
-        catch (ArgumentException e)
-        {
-            Debug.LogWarning("Error in parsing Encrypted Msg " + e.Message);
-            Debug.Log("Parsing Encrypted Msg Failed...");
-        }
-#endif
-    }
-
-    private void ParseDecryptedMessage(Dictionary<string, string> _parsedMsg)
-    {
-        // #if UNITY_EDITOR
-        //         Debug.Log("Parsing Decrypted Msg...");
-        // #endif
-
-        if (!_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
-        {
-#if UNITY_EDITOR
-            Debug.Log("No Msg Key is given in the msg.");
-#endif
-            return;
-        }
-        // #if UNITY_EDITOR
-        //         Debug.Log("Parsing Decrypted Msg Completed...");
-        // #endif
-
-        onDecryptedMsgReceived?.Invoke(_msg);
-#if UNITY_EDITOR
-        Debug.Log("Decrypting Msg Completed...");
-#endif
     }
 
     public void ConnectToServer(string _ipAddress, int _port)
@@ -232,7 +98,7 @@ public class LocalClient
         byte[] _data = Encoding.UTF8.GetBytes(_message);
         m_stream.Write(_data, 0, _data.Length);
 #if UNITY_EDITOR
-        Debug.Log(m_localClient.Client.ToString() + " sent message to local server : " + _message);
+        Debug.Log(m_localClient.Client.ToString() + " client sent message to local server : " + _message);
 #endif
     }
 

@@ -8,8 +8,7 @@ from threading import Thread
 from client import Client
 from world import World
 from avatar import Avatar
-from utilities import Instructions, Keys, MessageType
-from kyber import Kyber1024
+from utilities import ServerInstructions, Keys, MessageType
 import kyber_encrypt_decrypt 
 from user_info import UserInfo
 import json
@@ -28,7 +27,7 @@ registered_users : set[UserInfo] = set()
 clients : set[Client] = set()
 worldsDict : dict[str, World] = {}
 
-public_key, private_key = Kyber1024.keygen()
+public_key, private_key = kyber_encrypt_decrypt.getKey()
 
 
 def getClientFromAddress(address, port) -> Client:
@@ -56,27 +55,29 @@ def DecodeInstruction(client : Client, parsedMsg : dict):
     print("Parsing Message Complete")
     msg_code = parsedMsg[Keys.INSTRUCTION.value]
     
-    if msg_code == Instructions.CLIENT_KEY.value:
+    if msg_code == ServerInstructions.SET_KEY.value:
         pk = parsedMsg[Keys.PUBLIC_KEY.value]
         client.publicKey = pk
         print("client public key -> " + pk)
-    elif msg_code == Instructions.REGISTER_USER.value:
+    elif msg_code == ServerInstructions.GET_KEY.value:
+        sendServerKey(client, parsedMsg)
+    elif msg_code == ServerInstructions.REGISTER_USER.value:
         registerNewUser(client, parsedMsg)
-    elif msg_code == Instructions.LOGIN_USER.value:
+    elif msg_code == ServerInstructions.LOGIN_USER.value:
         logInUser(client, parsedMsg)
-    elif msg_code == Instructions.CREATE_AVATAR.value:
+    elif msg_code == ServerInstructions.CREATE_AVATAR.value:
         createAvatar(client, parsedMsg)
-    elif msg_code == Instructions.CLIENT_ALL_AVATARS.value:
-        clientAllAvatars(client, parsedMsg)
-    elif msg_code == Instructions.CREATE_WORLD.value:
+    elif msg_code == ServerInstructions.GET_CLIENT_ALL_AVATARS.value:
+        getClientAllAvatars(client, parsedMsg)
+    elif msg_code == ServerInstructions.CREATE_WORLD.value:
         createNewWorld(client, parsedMsg)
-    elif msg_code == Instructions.JOIN_WORLD.value:
+    elif msg_code == ServerInstructions.JOIN_WORLD.value:
         joinWorld(client, parsedMsg)
-    elif msg_code == Instructions.ALL_WORLDS.value:
+    elif msg_code == ServerInstructions.GET_ALL_WORLDS.value:
         allWorlds(client, parsedMsg)
-    elif msg_code == Instructions.WORLD_ALL_AVATARS.value:
+    elif msg_code == ServerInstructions.GET_WORLD_ALL_AVATARS.value:
         worldAllAvatars(client, parsedMsg)
-    elif msg_code == Instructions.SEND_MSG.value:
+    elif msg_code == ServerInstructions.SEND_MSG.value:
         sendMessageBetweenClient(client, parsedMsg)
     else:
         print(f"Message is sent without proper instruction -> {msg_code}")
@@ -116,13 +117,23 @@ def encryptMsg(msg : str, key : str) -> dict[str, str]:
     return info
 
 
+def sendServerKey(client : Client, parsedMsg : dict):
+    info : dict[str, str] = {}
+    info[Keys.INSTRUCTION.value] = ServerInstructions.GET_KEY.value
+    info[Keys.PUBLIC_KEY.value] = bytes.hex(public_key)
+    info[Keys.MSG_TYPE.value] = MessageType.PLAIN_TEXT.value
+    msg = json.dumps(info)
+    client.sendMessage(msg)
+    print("Server Public key is sent...")
+
+
 def logInUser(client : Client, parsedMsg : dict):
     login_info = json.loads(parsedMsg[Keys.LOGIN_INFO.value])
     user_name = login_info[Keys.USER_NAME.value]
     password = login_info[Keys.PASSWORD.value]
     
     info : dict[str, str] = {}
-    info[Keys.INSTRUCTION.value] = Instructions.LOGIN_USER.value
+    info[Keys.INSTRUCTION.value] = ServerInstructions.LOGIN_USER.value
     
     for user in registered_users:
         if user.user_name == user_name and user.password == password:
@@ -143,6 +154,7 @@ def logInUser(client : Client, parsedMsg : dict):
     
 
 def registerNewUser(client : Client, parsedMsg : dict[str, str]):
+    print("Registering new User...")
     registration_info : dict[str, str] = json.loads(parsedMsg[Keys.REGISTRATION_INFO.value])
     user_name = registration_info[Keys.USER_NAME.value]
     first_name = registration_info[Keys.FIRST_NAME.value]
@@ -150,7 +162,7 @@ def registerNewUser(client : Client, parsedMsg : dict[str, str]):
     password = registration_info[Keys.PASSWORD.value]
     
     info : dict[str, str] = {}
-    info[Keys.INSTRUCTION.value] = Instructions.REGISTER_USER.value
+    info[Keys.INSTRUCTION.value] = ServerInstructions.REGISTER_USER.value
     
     for user in registered_users:
         if user.user_name == user_name:
@@ -175,7 +187,7 @@ def registerNewUser(client : Client, parsedMsg : dict[str, str]):
 def createAvatar(client : Client, parsedMsg : dict):
     print("Creating New Avatar")
     info : dict[str, str] = {}
-    info[Keys.INSTRUCTION.value] = Instructions.CREATE_AVATAR.value
+    info[Keys.INSTRUCTION.value] = ServerInstructions.CREATE_AVATAR.value
     
     if not Keys.AVATAR_NAME.value in parsedMsg:
         info[Keys.ERROR.value] = "You did not provide any avatar name in the msg."
@@ -207,7 +219,7 @@ def createAvatar(client : Client, parsedMsg : dict):
 def createNewWorld(client : Client, parsedMsg : dict):
     print("Creating New World")
     info : dict[str, str] = {}
-    info[Keys.INSTRUCTION.value] = Instructions.CREATE_WORLD.value
+    info[Keys.INSTRUCTION.value] = ServerInstructions.CREATE_WORLD.value
     
     if not Keys.WORLD_NAME.value in parsedMsg:
         info[Keys.ERROR.value] = "You did not provide any world name in the msg."
@@ -241,7 +253,7 @@ def createNewWorld(client : Client, parsedMsg : dict):
 def joinWorld(client : Client, parsedMsg : dict):
     print("Joining World")
     info : dict[str, str] = {}
-    info[Keys.INSTRUCTION.value] = Instructions.JOIN_WORLD.value
+    info[Keys.INSTRUCTION.value] = ServerInstructions.JOIN_WORLD.value
     
     if not Keys.WORLD_ID.value in parsedMsg:
         info[Keys.ERROR.value] = "No world id key is present in the msg."
@@ -296,7 +308,7 @@ def allWorlds(client : Client, parsedMsg : dict):
     print("Get All Worlds")
     info : dict[str, str] = {}
     
-    info[Keys.INSTRUCTION.value] = Instructions.ALL_WORLDS.value   
+    info[Keys.INSTRUCTION.value] = ServerInstructions.GET_ALL_WORLDS.value   
     idx = 0
     for k in worldsDict:
         info[str(idx)] = worldsDict[k].worldId + "," + worldsDict[k].worldName + "," + worldsDict[k].ViewId
@@ -306,10 +318,10 @@ def allWorlds(client : Client, parsedMsg : dict):
     sendEncryptedMessageToClient(client, msg)
 
 
-def clientAllAvatars(client : Client, parsedMsg : dict):
+def getClientAllAvatars(client : Client, parsedMsg : dict):
     print("Getting All Avatar of the client")
     info : dict[str, str] = {}
-    info[Keys.INSTRUCTION.value] = Instructions.CLIENT_ALL_AVATARS.value
+    info[Keys.INSTRUCTION.value] = ServerInstructions.GET_CLIENT_ALL_AVATARS.value
     for idx, avatar in enumerate(client.avatars):
         info[str(idx)] = avatar.avatarID + "," + avatar.avatarName + "," + avatar.viewId
     
@@ -321,7 +333,7 @@ def clientAllAvatars(client : Client, parsedMsg : dict):
 def worldAllAvatars(client : Client, parsedMsg : dict):
     print("Getting All Avatars of the World")
     info : dict[str, str] = {}
-    info[Keys.INSTRUCTION.value] = Instructions.WORLD_ALL_AVATARS.value
+    info[Keys.INSTRUCTION.value] = ServerInstructions.GET_WORLD_ALL_AVATARS.value
 
     if not Keys.WORLD_ID.value in parsedMsg:
         info[Keys.ERROR.value] = "No world id key is present in the msg."
@@ -353,7 +365,7 @@ def sendMessageBetweenClient(client : Client, parsedMsg : dict):
     print("Sending Message to Avatar")
     print(parsedMsg)
     info : dict[str, str] = {}
-    info[Keys.INSTRUCTION.value] = Instructions.SEND_MSG.value
+    info[Keys.INSTRUCTION.value] = ServerInstructions.SEND_MSG.value
     
     if not Keys.WORLD_ID.value in parsedMsg:
         info[Keys.ERROR.value] = "No world id key is present in the msg."
@@ -438,8 +450,6 @@ def handleClient(client_socket : socket):
         print(f"Already joinned. Number of clients joinned {len(clients)}")
     else:
         client = Client(client_socket)
-        info[Keys.INSTRUCTION.value] = Instructions.SERVER_KEY.value
-        info[Keys.PUBLIC_KEY.value] = bytes.hex(public_key)
         info[Keys.MESSAGE.value] = f"You {client_socket.getpeername()} join newly..."
         clients.add(client)
         print(f"After adding new client, Number of clients {len(clients)}.")
@@ -448,7 +458,7 @@ def handleClient(client_socket : socket):
         print(info)
         info[Keys.MSG_TYPE.value] = MessageType.PLAIN_TEXT.value
         msg = json.dumps(info)
-        client.sendMessage(msg)
+        # client.sendMessage(msg)
         while True:
             try:
                 msg = client.receiveMessage(DATA_BUFFER_SIZE)

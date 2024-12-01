@@ -1,24 +1,24 @@
 from enum import Enum
 
 
-class Instructions(Enum):
-    REGISTER_USER = "register_user"
-    LOGIN_USER = "login_user"
+class ServerInstructions(Enum):
+    GET_KEY = "get_key"
+    SET_KEY = "set_key"
+    GET_CLIENT_ALL_AVATARS = "get_client_all_avatars"
+    GET_WORLD_ALL_AVATARS = "get_world_all_avatars"
+    GET_ALL_WORLDS = "all_worlds"
     CREATE_AVATAR = "create_avatar"
-    CLIENT_ALL_AVATARS = "client_all_avatars"
     CREATE_WORLD = "create_world"
+    LOGIN_USER = "login_user"
     JOIN_WORLD = "join_world"
-    WORLD_ALL_AVATARS = "world_all_avatars"
+    REGISTER_USER = "register_user"
     SEND_MSG = "send_msg"
-    SERVER_KEY = "server_key"
-    CLIENT_KEY = "client_key"
-    AVATAR_KEY = "avatar_key"
-    GET_CLIENT_KEY = "get_client_key"
-    ALL_WORLDS = "all_worlds"
+
+class LocalInstructions(Enum):
     ENCRYPT_MSG = "encrypt_msg"
     DECRYPT_MSG = "decrypt_msg"
     GENERATE_KEY = "generate_key"
-    
+
 class Keys(Enum):
     MSG_TYPE = "msg_type"
     INSTRUCTION = "instruction"

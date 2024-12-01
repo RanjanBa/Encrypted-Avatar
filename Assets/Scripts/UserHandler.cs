@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using UnityEngine;
@@ -15,8 +16,9 @@ public class UserHandler
     public string UserId => m_userId;
     public bool IsLoggedIn => !string.IsNullOrEmpty(m_userId) && !string.IsNullOrWhiteSpace(m_userId);
 
-    private readonly Client m_mainServerClient;
+    private readonly ServerClient m_mainServerClient;
     private readonly LocalClient m_localServerClient;
+
 
     public CallbackHandler<string> logInCallback;
     public CallbackHandler<string> registrationCallback;
@@ -29,7 +31,7 @@ public class UserHandler
 
     public UserHandler()
     {
-        m_mainServerClient = new Client();
+        m_mainServerClient = new ServerClient();
         m_localServerClient = new LocalClient();
 
         logInCallback = new CallbackHandler<string>();
@@ -44,42 +46,28 @@ public class UserHandler
         m_mainServerClient.onConnectedWithServer += () =>
         {
             m_isConnectedToMainServer = true;
+            GetServerPublicKey();
+        };
+
+        m_mainServerClient.onMessageReceived += (_msg) =>
+        {
+            ParseServerMessage(_msg);
         };
 
         m_localServerClient.onConnectedWithServer += () =>
         {
             m_isConnectedToLocalServer = true;
+            GenerateKey();
+        };
+
+        m_localServerClient.onMessageReceived += (_msg) =>
+        {
+            ParseLocalMessage(_msg);
         };
 
         worldJoinnedCallback.onSuccessCallbackDuringUpdateFrame += (_joinInfo) =>
         {
             GameManager.Instance.UpdateSelectedWorld(_joinInfo.worldInfo);
-        };
-
-        m_mainServerClient.onMessageReceived += (_msg) =>
-        {
-            ParseMessage(_msg);
-        };
-
-        m_localServerClient.onConnectedWithServer += GenerateKey;
-
-        m_localServerClient.onKeyGenerated += (pk, sk) =>
-        {
-            m_publicKey = pk;
-            m_privateKey = sk;
-            SendPublicKeyToServer(m_publicKey);
-        };
-
-        m_localServerClient.onEncryptedMsgReceived += (_info) =>
-        {
-            _info[Keys.MSG_TYPE] = MessageType.ENCRYPTED_TEXT;
-            string _msg = JsonConvert.SerializeObject(_info);
-            m_mainServerClient.SendMessageToServer(_msg);
-        };
-
-        m_localServerClient.onDecryptedMsgReceived += (_info) =>
-        {
-            ParseMessage(_info);
         };
         messageReceivedCallback.onSuccessCallbackDuringUpdateFrame += (_) => { };
     }
@@ -118,7 +106,161 @@ public class UserHandler
     //     messageReceivedCallback.ChangeToSuccess(_msgInfo);
     // }
 
-    private void ParseMessage(string _message)
+    private void ParseLocalMessage(string _message)
+    {
+        if (_message.Length == 0)
+        {
+            return;
+        }
+        try
+        {
+            Dictionary<string, string> _parsedMsg = JsonConvert.DeserializeObject<Dictionary<string, string>>(_message);
+            if (_parsedMsg.TryGetValue(Keys.INSTRUCTION, out string _msgCode))
+            {
+                if (_msgCode == LocalInstructions.GENERATE_KEY)
+                {
+                    ParseKeys(_parsedMsg);
+                    SendPublicKeyToServer(m_publicKey);
+                }
+                else if (_msgCode == LocalInstructions.ENCRYPT_MSG)
+                {
+                    ParseEncryptedMessage(_parsedMsg);
+                }
+                else if (_msgCode == LocalInstructions.DECRYPT_MSG)
+                {
+                    ParseDecryptedMessage(_parsedMsg);
+                }
+#if UNITY_EDITOR
+                else
+                {
+                    Debug.Log("Message is sent without proper instruction -> " + _msgCode);
+                }
+#endif
+            }
+#if UNITY_EDITOR
+            else
+            {
+                Debug.Log("No instruction is given with the msg...");
+                if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
+                {
+                    Debug.Log(_msg);
+                }
+            }
+#endif
+        }
+        catch (JsonReaderException e)
+        {
+#if UNITY_EDITOR
+            Debug.LogWarning("Json deserializatio error : " + e.ToString());
+#endif
+        }
+    }
+
+    private void ParseKeys(Dictionary<string, string> _parsedMsg)
+    {
+#if UNITY_EDITOR
+        Debug.Log("Parsing Public & Private Key...");
+#endif
+
+        if (!_parsedMsg.TryGetValue(Keys.PUBLIC_KEY, out string _publicKey))
+        {
+#if UNITY_EDITOR
+            Debug.Log("No Public Key is given in the msg.");
+#endif
+            return;
+        }
+
+        if (!_parsedMsg.TryGetValue(Keys.PRIVATE_KEY, out string _privateKey))
+        {
+#if UNITY_EDITOR
+            Debug.Log("No Private Key is given in the msg.");
+#endif
+            return;
+        }
+
+        m_publicKey = _publicKey;
+        m_privateKey = _privateKey;
+#if UNITY_EDITOR
+        Debug.Log("Parsing Public & Private Key Completed...");
+#endif
+    }
+
+    private void ParseEncryptedMessage(Dictionary<string, string> _parsedMsg)
+    {
+#if UNITY_EDITOR
+        Debug.Log("Parsing Encrypted Msg...");
+#endif
+        try
+        {
+            string encSessionKey = _parsedMsg[Keys.ENCAPSULATED_KEY];
+            string tag = _parsedMsg[Keys.TAG];
+            string cipherText = _parsedMsg[Keys.CIPHER_TEXT];
+            string nonce = _parsedMsg[Keys.NONCE];
+
+            Dictionary<string, string> _encryptedMsg = new Dictionary<string, string>() {
+                {Keys.ENCAPSULATED_KEY, encSessionKey},
+                {Keys.TAG, tag},
+                {Keys.CIPHER_TEXT, cipherText},
+                {Keys.NONCE, nonce}
+            };
+#if UNITY_EDITOR && DEBUG
+            Debug.Log("Parsing Encrypted Msg Completed...");
+#endif
+            SendEncryptedMsgToServer(_encryptedMsg);
+        }
+        catch (ArgumentException e)
+        {
+#if UNITY_EDITOR
+            Debug.LogWarning("Error in parsing Encrypted Msg " + e.Message);
+            Debug.Log("Parsing Encrypted Msg Failed...");
+#endif
+        }
+    }
+
+    private void ParseDecryptedMessage(Dictionary<string, string> _parsedMsg)
+    {
+#if UNITY_EDITOR
+        Debug.Log("Parsing Decrypted Msg...");
+#endif
+
+        if (!_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
+        {
+#if UNITY_EDITOR
+            Debug.Log("No Msg Key is given in the msg.");
+#endif
+            return;
+        }
+#if UNITY_EDITOR
+        Debug.Log("Parsing Decrypted Msg Completed...");
+        Debug.Log(_msg);
+#endif
+        try
+        {
+            _parsedMsg = JsonConvert.DeserializeObject<Dictionary<string, string>>(_msg);
+            if (_parsedMsg.TryGetValue(Keys.INSTRUCTION, out string _msgCode))
+            {
+                DecodeInstruction(_msgCode, _parsedMsg);
+            }
+#if UNITY_EDITOR
+            else
+            {
+                Debug.Log("No instruction is given with the msg...");
+                Debug.Log(_msg);
+            }
+#endif
+        }
+        catch (JsonReaderException e)
+        {
+#if UNITY_EDITOR
+            Debug.LogWarning("Json deserializatio error : " + e.ToString());
+#endif
+        }
+#if UNITY_EDITOR
+        Debug.Log("Decrypting Msg Completed...");
+#endif
+    }
+
+    private void ParseServerMessage(string _message)
     {
         if (_message.Length == 0)
         {
@@ -162,7 +304,7 @@ public class UserHandler
 
     private void DecodeInstruction(string _msgCode, Dictionary<string, string> _parsedMsg)
     {
-        if (_msgCode == Instructions.SERVER_KEY)
+        if (_msgCode == ServerInstructions.GET_KEY)
         {
             m_serverPublicKey = _parsedMsg[Keys.PUBLIC_KEY];
 #if UNITY_EDITOR
@@ -173,7 +315,7 @@ public class UserHandler
             }
 #endif
         }
-        else if (_msgCode == Instructions.REGISTER_USER)
+        else if (_msgCode == ServerInstructions.REGISTER_USER)
         {
             if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
             {
@@ -191,7 +333,7 @@ public class UserHandler
 #endif
 
         }
-        else if (_msgCode == Instructions.LOGIN_USER)
+        else if (_msgCode == ServerInstructions.LOGIN_USER)
         {
             if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
             {
@@ -208,7 +350,7 @@ public class UserHandler
             Debug.Log("User ID -> " + m_userId);
 #endif
         }
-        else if (_msgCode == Instructions.CREATE_AVATAR)
+        else if (_msgCode == ServerInstructions.CREATE_AVATAR)
         {
             if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
             {
@@ -227,8 +369,11 @@ public class UserHandler
             };
 
             avatarCreationCallback.ChangeToSuccess(_avatarInfo);
+#if UNITY_EDITOR
+            Debug.Log("New Avatar is created with id : " + _avatarInfo.avatarId);
+#endif
         }
-        else if (_msgCode == Instructions.CREATE_WORLD)
+        else if (_msgCode == ServerInstructions.CREATE_WORLD)
         {
             if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
             {
@@ -247,7 +392,7 @@ public class UserHandler
             };
             worldCreationCallback.ChangeToSuccess(_worldInfo);
         }
-        else if (_msgCode == Instructions.CLIENT_ALL_AVATARS)
+        else if (_msgCode == ServerInstructions.GET_CLIENT_ALL_AVATARS)
         {
             if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
             {
@@ -282,7 +427,7 @@ public class UserHandler
             }
             getAllAvatarsCallback.ChangeToSuccess(_avatars);
         }
-        else if (_msgCode == Instructions.ALL_WORLDS)
+        else if (_msgCode == ServerInstructions.GET_ALL_WORLDS)
         {
             if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
             {
@@ -317,7 +462,7 @@ public class UserHandler
             }
             getAllWorldsCallback.ChangeToSuccess(_worlds);
         }
-        else if (_msgCode == Instructions.JOIN_WORLD)
+        else if (_msgCode == ServerInstructions.JOIN_WORLD)
         {
             if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
             {
@@ -346,7 +491,7 @@ public class UserHandler
             };
             worldJoinnedCallback.ChangeToSuccess(_joinInfo);
         }
-        else if (_msgCode == Instructions.WORLD_ALL_AVATARS)
+        else if (_msgCode == ServerInstructions.GET_WORLD_ALL_AVATARS)
         {
             if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
             {
@@ -381,7 +526,7 @@ public class UserHandler
             }
             getAllAvatarsCallback.ChangeToSuccess(_avatars);
         }
-        else if (_msgCode == Instructions.SEND_MSG)
+        else if (_msgCode == ServerInstructions.SEND_MSG)
         {
             if (_parsedMsg.TryGetValue(Keys.ERROR, out string _errorMsg))
             {
@@ -425,7 +570,7 @@ public class UserHandler
 #endif
         Dictionary<string, string> _msgDict = new Dictionary<string, string>
         {
-            { Keys.INSTRUCTION, Instructions.ENCRYPT_MSG },
+            { Keys.INSTRUCTION, LocalInstructions.ENCRYPT_MSG },
             { Keys.PUBLIC_KEY, _publicKey },
             { Keys.MESSAGE, _message }
         };
@@ -450,7 +595,7 @@ public class UserHandler
         Debug.Log("Decrypting Msg...");
 #endif
         Dictionary<string, string> _msgDict = new Dictionary<string, string> {
-            {Keys.INSTRUCTION, Instructions.DECRYPT_MSG },
+            {Keys.INSTRUCTION, LocalInstructions.DECRYPT_MSG },
             {Keys.PRIVATE_KEY, m_privateKey}
         };
 
@@ -466,12 +611,28 @@ public class UserHandler
         m_localServerClient.SendMessageToServer(_msg);
     }
 
+    private void GetServerPublicKey()
+    {
+        Dictionary<string, string> _msgDict = new Dictionary<string, string>
+        {
+            { Keys.INSTRUCTION, ServerInstructions.GET_KEY },
+            { Keys.MSG_TYPE, MessageType.PLAIN_TEXT }
+        };
+
+#if UNITY_EDITOR
+        Debug.Log("Get Server Public Key...");
+#endif
+
+        string _msg = JsonConvert.SerializeObject(_msgDict);
+        m_mainServerClient.SendMessageToServer(_msg);
+    }
+
     public void Register(Dictionary<string, string> _infoDict)
     {
         registrationCallback.ChangeToPending();
         string _info = JsonConvert.SerializeObject(_infoDict);
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
-            {Keys.INSTRUCTION, Instructions.REGISTER_USER},
+            {Keys.INSTRUCTION, ServerInstructions.REGISTER_USER},
             {Keys.REGISTRATION_INFO, _info}
         };
 
@@ -484,7 +645,7 @@ public class UserHandler
         logInCallback.ChangeToPending();
         string _info = JsonConvert.SerializeObject(_infoDict);
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
-            {Keys.INSTRUCTION, Instructions.LOGIN_USER},
+            {Keys.INSTRUCTION, ServerInstructions.LOGIN_USER},
             {Keys.LOGIN_INFO, _info}
         };
 
@@ -496,7 +657,7 @@ public class UserHandler
     {
         avatarCreationCallback.ChangeToPending();
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
-            {Keys.INSTRUCTION, Instructions.CREATE_AVATAR},
+            {Keys.INSTRUCTION, ServerInstructions.CREATE_AVATAR},
             {Keys.AVATAR_NAME, _avatarName},
             {Keys.AVATAR_VIEW_ID, _viewId}
         };
@@ -509,7 +670,7 @@ public class UserHandler
     {
         worldCreationCallback.ChangeToPending();
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
-            {Keys.INSTRUCTION, Instructions.CREATE_WORLD},
+            {Keys.INSTRUCTION, ServerInstructions.CREATE_WORLD},
             {Keys.WORLD_NAME, _worldName},
             {Keys.WORLD_VIEW_ID, _viewId}
         };
@@ -523,7 +684,7 @@ public class UserHandler
     {
         getAllAvatarsCallback.ChangeToPending();
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
-            {Keys.INSTRUCTION, Instructions.CLIENT_ALL_AVATARS}
+            {Keys.INSTRUCTION, ServerInstructions.GET_CLIENT_ALL_AVATARS}
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
@@ -535,7 +696,7 @@ public class UserHandler
     {
         getAllWorldsCallback.ChangeToPending();
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
-            {Keys.INSTRUCTION, Instructions.ALL_WORLDS}
+            {Keys.INSTRUCTION, ServerInstructions.GET_ALL_WORLDS}
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
@@ -547,7 +708,7 @@ public class UserHandler
     {
         worldJoinnedCallback.ChangeToPending();
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
-            {Keys.INSTRUCTION, Instructions.JOIN_WORLD},
+            {Keys.INSTRUCTION, ServerInstructions.JOIN_WORLD},
             {Keys.AVATAR_ID, _avatarId},
             {Keys.WORLD_ID, _worldId}
         };
@@ -561,7 +722,7 @@ public class UserHandler
     {
         getAllAvatarsCallback.ChangeToPending();
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
-            {Keys.INSTRUCTION, Instructions.WORLD_ALL_AVATARS},
+            {Keys.INSTRUCTION, ServerInstructions.GET_WORLD_ALL_AVATARS},
             {Keys.WORLD_ID, _worldId}
         };
 
@@ -573,7 +734,7 @@ public class UserHandler
     public void SendPublicKeyToServer(string _key)
     {
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
-            {Keys.INSTRUCTION, Instructions.CLIENT_KEY},
+            {Keys.INSTRUCTION, ServerInstructions.SET_KEY},
             {Keys.PUBLIC_KEY, _key}
         };
 
@@ -581,10 +742,17 @@ public class UserHandler
         m_mainServerClient.SendMessageToServer(_msg);
     }
 
+    public void SendEncryptedMsgToServer(Dictionary<string, string> _info)
+    {
+        _info[Keys.MSG_TYPE] = MessageType.ENCRYPTED_TEXT;
+        string _msg = JsonConvert.SerializeObject(_info);
+        m_mainServerClient.SendMessageToServer(_msg);
+    }
+
     public void SendMessageToReceiver(string _worldId, string _receiverId, string _sendMsg)
     {
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
-            {Keys.INSTRUCTION, Instructions.SEND_MSG},
+            {Keys.INSTRUCTION, ServerInstructions.SEND_MSG},
             {Keys.WORLD_ID, _worldId},
             {Keys.RECIEVER_ID, _receiverId},
             {Keys.MESSAGE, _sendMsg}
@@ -599,7 +767,7 @@ public class UserHandler
     {
         Dictionary<string, string> _msgDict = new Dictionary<string, string>
         {
-            { Keys.INSTRUCTION, Instructions.GENERATE_KEY }
+            { Keys.INSTRUCTION, LocalInstructions.GENERATE_KEY }
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);

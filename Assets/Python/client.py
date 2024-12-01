@@ -32,7 +32,7 @@ class Client:
         if self.__socket == None:
             print("Not connected to the client...")
             return
-        
+
         self.__socket.send(msg.encode())
         
     def receiveMessage(self, bufferSize : int = 1024) -> str:

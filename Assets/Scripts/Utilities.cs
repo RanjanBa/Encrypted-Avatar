@@ -1,24 +1,26 @@
 using System;
 using UnityEngine;
 
-public static class Instructions
+public static class ServerInstructions
 {
-    public const string REGISTER_USER = "register_user";
-    public const string LOGIN_USER = "login_user";
+    public const string GET_KEY = "get_key";
+    public const string SET_KEY = "set_key";
+    public const string GET_CLIENT_ALL_AVATARS = "get_client_all_avatars";
+    public const string GET_WORLD_ALL_AVATARS = "get_world_all_avatars";
+    public const string GET_ALL_WORLDS = "all_worlds";
     public const string CREATE_AVATAR = "create_avatar";
-    public const string CLIENT_ALL_AVATARS = "client_all_avatars";
     public const string CREATE_WORLD = "create_world";
+    public const string LOGIN_USER = "login_user";
     public const string JOIN_WORLD = "join_world";
-    public const string WORLD_ALL_AVATARS = "world_all_avatars";
+    public const string REGISTER_USER = "register_user";
     public const string SEND_MSG = "send_msg";
-    public const string ALL_WORLDS = "all_worlds";
-    public const string SERVER_KEY = "server_key";
-    public const string CLIENT_KEY = "client_key";
-    public const string AVATAR_KEY = "avatar_key";
-    public const string GET_CLIENT_KEY = "get_client_key";
-    public const string GENERATE_KEY = "generate_key";
-    public const string ENCRYPT_MSG = "encrypt_msg";
+}
+
+public static class LocalInstructions
+{
     public const string DECRYPT_MSG = "decrypt_msg";
+    public const string ENCRYPT_MSG = "encrypt_msg";
+    public const string GENERATE_KEY = "generate_key";
 }
 
 public static class Keys
