@@ -6,7 +6,8 @@ class Client:
     def __init__(self, _socket : socket) -> None:
         self.__socket = _socket
         self.__avatars_dict : dict[str, Avatar] = {}
-        self.__public_key : str = None
+        self.__kyber_public_key : str = None
+        self.__dilithium_public_key : str = None
 
     @property
     def socket(self):
@@ -17,12 +18,20 @@ class Client:
         return list(self.__avatars_dict.values())
     
     @property
-    def publicKey(self):
-        return self.__public_key
+    def kyberPublicKey(self):
+        return self.__kyber_public_key
     
-    @publicKey.setter
-    def publicKey(self, pk):
-        self.__public_key = pk
+    @kyberPublicKey.setter
+    def kyberPublicKey(self, pk):
+        self.__kyber_public_key = pk
+
+    @property
+    def dilithiumPublicKey(self):
+        return self.__dilithium_public_key
+    
+    @dilithiumPublicKey.setter
+    def dilithiumPublicKey(self, pk):
+        self.__dilithium_public_key = pk
     
     def close(self):
         self.__socket.close()

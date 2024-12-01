@@ -41,8 +41,8 @@ def parseMessage(msg : str):
     if msg_code == Instructions.GENERATE_KEY.value:
         global public_key
         global private_key
-        public_key = parsedMsg[Keys.PUBLIC_KEY.value]
-        private_key = parsedMsg[Keys.PRIVATE_KEY.value]
+        public_key = parsedMsg[Keys.KYBER_PUBLIC_KEY.value]
+        private_key = parsedMsg[Keys.KYBER_PRIVATE_KEY.value]
     elif msg_code == Instructions.ENCRYPT_MSG.value:
         global encrypted_msg
         encrypted_msg = {}
@@ -90,7 +90,7 @@ while is_running:
             
             msg = input("Enter msg to encrypt : ")
             info[Keys.INSTRUCTION.value] = Instructions.ENCRYPT_MSG.value
-            info[Keys.PUBLIC_KEY.value] = public_key
+            info[Keys.KYBER_PUBLIC_KEY.value] = public_key
             info[Keys.MESSAGE.value] = msg
             client.send(json.dumps(info).encode())
         elif ch == "d" or ch == 'decrypt msg':
@@ -98,7 +98,7 @@ while is_running:
                 print("First encrypt the message.")
                 continue
             encrypted_msg[Keys.INSTRUCTION.value] = Instructions.DECRYPT_MSG.value
-            encrypted_msg[Keys.PRIVATE_KEY.value] = private_key
+            encrypted_msg[Keys.KYBER_PRIVATE_KEY.value] = private_key
             msg = json.dumps(encrypted_msg)
             client.send(msg.encode())
         elif ch == 'exit':

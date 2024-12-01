@@ -6,7 +6,7 @@ using UnityEngine;
 
 public class ServerClient
 {
-    private const int m_DATA_BUFFER_SIZE = 8192;
+    private const int m_DATA_BUFFER_SIZE = 20480;
 
     private TcpClient m_client;
     private NetworkStream m_stream;
@@ -41,6 +41,7 @@ public class ServerClient
                         continue;
                     }
 #endif
+
                     onMessageReceived?.Invoke(_serverMsg);
                 }
             }
@@ -88,6 +89,27 @@ public class ServerClient
 #endif
             return;
         }
+
+        byte[] _data = Encoding.UTF8.GetBytes(_message);
+        m_stream.Write(_data, 0, _data.Length);
+#if UNITY_EDITOR
+        Debug.Log(m_client.Client.ToString() + " client is sending message to server : " + _message);
+#endif
+    }
+
+    public void SendMessageToServer(string _message, string _clientPrivateKey)
+    {
+        if (m_client == null || !m_client.Connected)
+        {
+#if UNITY_EDITOR
+            Debug.LogError("Client not connected to server.");
+#endif
+            return;
+        }
+
+        // Hash of msg -> h_msg
+        // Signartue With Dilithim(h_msg, client_sk)
+        // send (msg + sign)
 
         byte[] _data = Encoding.UTF8.GetBytes(_message);
         m_stream.Write(_data, 0, _data.Length);

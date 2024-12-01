@@ -5,9 +5,16 @@ using UnityEngine;
 
 public class UserHandler
 {
-    private string m_privateKey;
-    private string m_publicKey;
-    private string m_serverPublicKey;
+    // Client keys
+    private string m_kyberPrivateKey;
+    private string m_kyberPublicKey;
+    private string m_dilithiumPrivateKey;
+    private string m_dilithiumPublicKey;
+
+    // Server keys
+    private string m_serverKyberPublicKey;
+    private string m_serverDilithiumPublicKey;
+
     private string m_userId;
     private bool m_isConnectedToLocalServer;
     private bool m_isConnectedToMainServer;
@@ -120,7 +127,7 @@ public class UserHandler
                 if (_msgCode == LocalInstructions.GENERATE_KEY)
                 {
                     ParseKeys(_parsedMsg);
-                    SendPublicKeyToServer(m_publicKey);
+                    SendPublicKeyToServer();
                 }
                 else if (_msgCode == LocalInstructions.ENCRYPT_MSG)
                 {
@@ -129,6 +136,14 @@ public class UserHandler
                 else if (_msgCode == LocalInstructions.DECRYPT_MSG)
                 {
                     ParseDecryptedMessage(_parsedMsg);
+                }
+                else if(_msgCode == LocalInstructions.SIGN_MSG)
+                {
+                    ParseSignatureMessage(_parsedMsg);
+                }
+                else if(_msgCode == LocalInstructions.VERIFY_MSG)
+                {
+                    ParseVerifiedMessage(_parsedMsg);
                 }
 #if UNITY_EDITOR
                 else
@@ -156,30 +171,98 @@ public class UserHandler
         }
     }
 
+    private void ParseServerMessage(string _message)
+    {
+        if (_message.Length == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            Dictionary<string, string> _parsedMsg = JsonConvert.DeserializeObject<Dictionary<string, string>>(_message);
+
+            // For Digital Signature verify
+            if(_parsedMsg.TryGetValue(Keys.SIGNATURE, out string _signature))
+            {
+                Verify(_parsedMsg[Keys.MESSAGE], _signature);
+                return;
+            }
+
+            if (_parsedMsg.TryGetValue(Keys.MSG_TYPE, out string _msgType))
+            {
+                if (_msgType == MessageType.ENCRYPTED_TEXT)
+                {
+                    DecryptMsg(_parsedMsg);
+                    return;
+                }
+            }
+
+            if (_parsedMsg.TryGetValue(Keys.INSTRUCTION, out string _msgCode))
+            {
+                DecodeInstruction(_msgCode, _parsedMsg);
+            }
+#if UNITY_EDITOR
+            else
+            {
+                Debug.Log("No instruction is given with the msg...");
+                if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
+                {
+                    Debug.Log(_msg);
+                }
+            }
+#endif
+        }
+        catch (JsonReaderException e)
+        {
+#if UNITY_EDITOR
+            Debug.LogWarning("Json deserializatio error : " + e.ToString());
+#endif
+        }
+    }
+
     private void ParseKeys(Dictionary<string, string> _parsedMsg)
     {
 #if UNITY_EDITOR
         Debug.Log("Parsing Public & Private Key...");
 #endif
 
-        if (!_parsedMsg.TryGetValue(Keys.PUBLIC_KEY, out string _publicKey))
+        if (!_parsedMsg.TryGetValue(Keys.KYBER_PUBLIC_KEY, out string _kyberPublicKey))
         {
 #if UNITY_EDITOR
-            Debug.Log("No Public Key is given in the msg.");
+            Debug.Log("No Kyber Public Key is given in the msg.");
 #endif
             return;
         }
 
-        if (!_parsedMsg.TryGetValue(Keys.PRIVATE_KEY, out string _privateKey))
+        if (!_parsedMsg.TryGetValue(Keys.KYBER_PRIVATE_KEY, out string _kyberPrivateKey))
         {
 #if UNITY_EDITOR
-            Debug.Log("No Private Key is given in the msg.");
+            Debug.Log("No Kyber Private Key is given in the msg.");
 #endif
             return;
         }
 
-        m_publicKey = _publicKey;
-        m_privateKey = _privateKey;
+        if (!_parsedMsg.TryGetValue(Keys.DILITHIUM_PUBLIC_KEY, out string _dilithiumPublicKey))
+        {
+#if UNITY_EDITOR
+            Debug.Log("No Dilithium Public Key is given in the msg.");
+#endif
+            return;
+        }
+
+        if (!_parsedMsg.TryGetValue(Keys.DILITHIUM_PRIVATE_KEY, out string _dilithiumPrivateKey))
+        {
+#if UNITY_EDITOR
+            Debug.Log("No Dilithium Private Key is given in the msg.");
+#endif
+            return;
+        }
+
+        m_kyberPublicKey = _kyberPublicKey;
+        m_kyberPrivateKey = _kyberPrivateKey;
+        m_dilithiumPublicKey = _dilithiumPublicKey;
+        m_dilithiumPrivateKey = _dilithiumPrivateKey;
 #if UNITY_EDITOR
         Debug.Log("Parsing Public & Private Key Completed...");
 #endif
@@ -198,6 +281,7 @@ public class UserHandler
             string nonce = _parsedMsg[Keys.NONCE];
 
             Dictionary<string, string> _encryptedMsg = new Dictionary<string, string>() {
+                {Keys.MSG_TYPE, MessageType.ENCRYPTED_TEXT },
                 {Keys.ENCAPSULATED_KEY, encSessionKey},
                 {Keys.TAG, tag},
                 {Keys.CIPHER_TEXT, cipherText},
@@ -206,7 +290,9 @@ public class UserHandler
 #if UNITY_EDITOR && DEBUG
             Debug.Log("Parsing Encrypted Msg Completed...");
 #endif
-            SendEncryptedMsgToServer(_encryptedMsg);
+            //SendEncryptedMsgToServer(_encryptedMsg);
+            string _msg = JsonConvert.SerializeObject(_encryptedMsg);
+            Signature(_msg);
         }
         catch (ArgumentException e)
         {
@@ -260,16 +346,41 @@ public class UserHandler
 #endif
     }
 
-    private void ParseServerMessage(string _message)
+    private void ParseSignatureMessage(Dictionary<string, string> _parsedMsg)
     {
-        if (_message.Length == 0)
-        {
-            return;
-        }
+#if UNITY_EDITOR
+        Debug.Log("Parsing Signature Msg...");
+#endif
 
-        try
+        string _msg = _parsedMsg[Keys.MESSAGE];
+        string _sign = _parsedMsg[Keys.SIGNATURE];
+
+        Dictionary<string, string> _info = new Dictionary<string, string>
         {
-            Dictionary<string, string> _parsedMsg = JsonConvert.DeserializeObject<Dictionary<string, string>>(_message);
+            {Keys.SIGNATURE, _sign},
+            {Keys.MESSAGE, _msg},
+        };
+
+        _msg = JsonConvert.SerializeObject(_info);
+        m_mainServerClient.SendMessageToServer(_msg);
+    }
+
+    private void ParseVerifiedMessage(Dictionary<string, string> _parsedMsg)
+    {
+#if UNITY_EDITOR
+        Debug.Log("Parsing Vefifying Msg...");
+#endif
+        string status = _parsedMsg[Keys.VERIFICATION_STATUS];
+
+        if (status.CompareTo(VerificationStatus.VERIFIED) == 0)
+        {
+#if UNITY_EDITOR
+            Debug.Log("Verification success...");
+#endif
+            string _msg = _parsedMsg[Keys.MESSAGE];
+
+            _parsedMsg = JsonConvert.DeserializeObject<Dictionary<string, string>>(_msg);
+
             if (_parsedMsg.TryGetValue(Keys.MSG_TYPE, out string _msgType))
             {
                 if (_msgType == MessageType.ENCRYPTED_TEXT)
@@ -287,28 +398,30 @@ public class UserHandler
             else
             {
                 Debug.Log("No instruction is given with the msg...");
-                if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
+                if (_parsedMsg.TryGetValue(Keys.MESSAGE, out _msg))
                 {
                     Debug.Log(_msg);
                 }
             }
 #endif
         }
-        catch (JsonReaderException e)
+        else
         {
 #if UNITY_EDITOR
-            Debug.LogWarning("Json deserializatio error : " + e.ToString());
+            Debug.Log("Verification failed...");
 #endif
         }
     }
 
     private void DecodeInstruction(string _msgCode, Dictionary<string, string> _parsedMsg)
     {
-        if (_msgCode == ServerInstructions.GET_KEY)
+        if (_msgCode == ServerInstructions.GET_SERVER_KEY)
         {
-            m_serverPublicKey = _parsedMsg[Keys.PUBLIC_KEY];
+            m_serverKyberPublicKey = _parsedMsg[Keys.KYBER_PUBLIC_KEY];
+            m_serverDilithiumPublicKey = _parsedMsg[Keys.DILITHIUM_PUBLIC_KEY];
 #if UNITY_EDITOR
-            Debug.Log("Server Public Key -> " + m_serverPublicKey.Truncate(50));
+            Debug.Log("Server Kyber Public Key -> " + m_serverKyberPublicKey.Truncate(50));
+            Debug.Log("Server Dilithium Public Key -> " + m_serverDilithiumPublicKey.Truncate(50));
             if (_parsedMsg.TryGetValue(Keys.MESSAGE, out string _msg))
             {
                 Debug.Log(_msg);
@@ -555,12 +668,27 @@ public class UserHandler
         }
     }
 
-    private void EncryptMsg(string _message, string _publicKey)
+    private void GenerateKey()
     {
-        if (_publicKey == null || _publicKey.Length == 0)
+        Dictionary<string, string> _msgDict = new Dictionary<string, string>
+        {
+            { Keys.INSTRUCTION, LocalInstructions.GENERATE_KEY }
+        };
+
+        string _msg = JsonConvert.SerializeObject(_msgDict);
+#if UNITY_EDITOR
+        Debug.Log("Generate Public & Private Key...");
+        Debug.Log(_msg);
+#endif
+        m_localServerClient.SendMessageToServer(_msg);
+    }
+
+    private void EncryptMsg(string _message)
+    {
+        if (m_serverKyberPublicKey == null || m_serverKyberPublicKey.Length == 0)
         {
 #if UNITY_EDITOR
-            Debug.Log("Valid public key is not present.");
+            Debug.Log("Valid server kyber public key is not present.");
 #endif
             return;
         }
@@ -571,7 +699,7 @@ public class UserHandler
         Dictionary<string, string> _msgDict = new Dictionary<string, string>
         {
             { Keys.INSTRUCTION, LocalInstructions.ENCRYPT_MSG },
-            { Keys.PUBLIC_KEY, _publicKey },
+            { Keys.KYBER_PUBLIC_KEY, m_serverKyberPublicKey },
             { Keys.MESSAGE, _message }
         };
 
@@ -584,10 +712,10 @@ public class UserHandler
 
     private void DecryptMsg(Dictionary<string, string> _encryptedMsg)
     {
-        if (m_privateKey == null || m_privateKey.Length == 0)
+        if (m_kyberPrivateKey == null || m_kyberPrivateKey.Length == 0)
         {
 #if UNITY_EDITOR
-            Debug.Log("Valid public key is not present.");
+            Debug.Log("Valid Kyber public key is not present.");
 #endif
             return;
         }
@@ -596,7 +724,7 @@ public class UserHandler
 #endif
         Dictionary<string, string> _msgDict = new Dictionary<string, string> {
             {Keys.INSTRUCTION, LocalInstructions.DECRYPT_MSG },
-            {Keys.PRIVATE_KEY, m_privateKey}
+            {Keys.KYBER_PRIVATE_KEY, m_kyberPrivateKey}
         };
 
         foreach (KeyValuePair<string, string> item in _encryptedMsg)
@@ -611,11 +739,57 @@ public class UserHandler
         m_localServerClient.SendMessageToServer(_msg);
     }
 
+    private void Signature(string _msg)
+    {
+        if (m_dilithiumPrivateKey == null || m_dilithiumPrivateKey.Length == 0)
+        {
+#if UNITY_EDITOR
+            Debug.Log("Valid Dilithium private key is not present.");
+#endif
+            return;
+        }
+#if UNITY_EDITOR
+        Debug.Log("Signing Msg...");
+#endif
+        Dictionary<string, string> _info = new Dictionary<string, string>
+        {
+            { Keys.INSTRUCTION, LocalInstructions.SIGN_MSG },
+            { Keys.DILITHIUM_PRIVATE_KEY, m_dilithiumPrivateKey},
+            { Keys.MESSAGE, _msg }
+        };
+
+        m_localServerClient.SendMessageToServer(JsonConvert.SerializeObject(_info));
+    }
+
+    private void Verify(string _msg, string _sign)
+    {
+        if (m_serverDilithiumPublicKey == null || m_serverDilithiumPublicKey.Length == 0)
+        {
+#if UNITY_EDITOR
+            Debug.Log("Valid Dilithium private key is not present.");
+#endif
+            return;
+        }
+#if UNITY_EDITOR
+        Debug.Log("Verifying Msg...");
+#endif
+
+        Dictionary<string, string> _info = new Dictionary<string, string>
+        {
+            { Keys.INSTRUCTION, LocalInstructions.VERIFY_MSG},
+            { Keys.DILITHIUM_PUBLIC_KEY, m_serverDilithiumPublicKey },
+            { Keys.SIGNATURE, _sign },
+            { Keys.MESSAGE, _msg }
+        };
+
+        m_localServerClient.SendMessageToServer(JsonConvert.SerializeObject(_info));
+    }
+
     private void GetServerPublicKey()
     {
         Dictionary<string, string> _msgDict = new Dictionary<string, string>
         {
-            { Keys.INSTRUCTION, ServerInstructions.GET_KEY },
+            { Keys.INSTRUCTION, ServerInstructions.GET_SERVER_KEY },
             { Keys.MSG_TYPE, MessageType.PLAIN_TEXT }
         };
 
@@ -637,7 +811,7 @@ public class UserHandler
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
-        EncryptMsg(_msg, m_serverPublicKey);
+        EncryptMsg(_msg);
     }
 
     public void LogIn(Dictionary<string, string> _infoDict)
@@ -650,7 +824,7 @@ public class UserHandler
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
-        EncryptMsg(_msg, m_serverPublicKey);
+        EncryptMsg(_msg);
     }
 
     public void CreateAvatar(string _avatarName, string _viewId)
@@ -663,7 +837,7 @@ public class UserHandler
         };
         string _msg = JsonConvert.SerializeObject(_msgDict);
         // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        EncryptMsg(_msg);
     }
 
     public void CreateWorld(string _worldName, string _viewId)
@@ -677,7 +851,7 @@ public class UserHandler
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
         // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        EncryptMsg(_msg);
     }
 
     public void GetAllMyAvatars()
@@ -689,7 +863,7 @@ public class UserHandler
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
         // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        EncryptMsg(_msg);
     }
 
     public void GetAllWorlds()
@@ -701,7 +875,7 @@ public class UserHandler
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
         // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        EncryptMsg(_msg);
     }
 
     public void JoinWorld(string _avatarId, string _worldId)
@@ -715,7 +889,7 @@ public class UserHandler
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
         // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        EncryptMsg(_msg);
     }
 
     public void GetAllAvatarsFromWorld(string _worldId)
@@ -728,25 +902,31 @@ public class UserHandler
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
         // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
+        EncryptMsg(_msg);
     }
 
-    public void SendPublicKeyToServer(string _key)
+    public void SendPublicKeyToServer()
     {
         Dictionary<string, string> _msgDict = new Dictionary<string, string>() {
-            {Keys.INSTRUCTION, ServerInstructions.SET_KEY},
-            {Keys.PUBLIC_KEY, _key}
+            {Keys.INSTRUCTION, ServerInstructions.SET_CLIENT_KEY},
+            {Keys.KYBER_PUBLIC_KEY, m_kyberPublicKey },
+            {Keys.DILITHIUM_PUBLIC_KEY, m_dilithiumPublicKey }
         };
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
         m_mainServerClient.SendMessageToServer(_msg);
     }
 
-    public void SendEncryptedMsgToServer(Dictionary<string, string> _info)
+    //public void SendEncryptedMsgToServer(Dictionary<string, string> _encryptedMsg)
+    //{
+    //    _encryptedMsg[Keys.MSG_TYPE] = MessageType.ENCRYPTED_TEXT;
+    //    string _msg = JsonConvert.SerializeObject(_encryptedMsg);
+    //    m_mainServerClient.SendMessageToServer(_msg);
+    //}
+
+    public void SendSignatureMsgToServer(Dictionary<string, string> _encryptedMsg)
     {
-        _info[Keys.MSG_TYPE] = MessageType.ENCRYPTED_TEXT;
-        string _msg = JsonConvert.SerializeObject(_info);
-        m_mainServerClient.SendMessageToServer(_msg);
+
     }
 
     public void SendMessageToReceiver(string _worldId, string _receiverId, string _sendMsg)
@@ -760,21 +940,6 @@ public class UserHandler
 
         string _msg = JsonConvert.SerializeObject(_msgDict);
         // m_mainServerClient.SendMessageToServer(_msg);
-        EncryptMsg(_msg, m_serverPublicKey);
-    }
-
-    public void GenerateKey()
-    {
-        Dictionary<string, string> _msgDict = new Dictionary<string, string>
-        {
-            { Keys.INSTRUCTION, LocalInstructions.GENERATE_KEY }
-        };
-
-        string _msg = JsonConvert.SerializeObject(_msgDict);
-#if UNITY_EDITOR
-        Debug.Log("Generate Public & Private Key...");
-        Debug.Log(_msg);
-#endif
-        m_localServerClient.SendMessageToServer(_msg);
+        EncryptMsg(_msg);
     }
 }

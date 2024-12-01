@@ -2,8 +2,8 @@ from enum import Enum
 
 
 class ServerInstructions(Enum):
-    GET_KEY = "get_key"
-    SET_KEY = "set_key"
+    GET_SERVER_KEY = "get_server_key"
+    SET_CLIENT_KEY = "set_client_key"
     GET_CLIENT_ALL_AVATARS = "get_client_all_avatars"
     GET_WORLD_ALL_AVATARS = "get_world_all_avatars"
     GET_ALL_WORLDS = "all_worlds"
@@ -17,11 +17,17 @@ class ServerInstructions(Enum):
 class LocalInstructions(Enum):
     ENCRYPT_MSG = "encrypt_msg"
     DECRYPT_MSG = "decrypt_msg"
+    SIGN_MSG = "sign_msg"
+    VERIFY_MSG = "verify_msg"
     GENERATE_KEY = "generate_key"
 
 class Keys(Enum):
     MSG_TYPE = "msg_type"
     INSTRUCTION = "instruction"
+    KYBER_PUBLIC_KEY = "kyber_public_key"
+    KYBER_PRIVATE_KEY = "kyber_private_key"
+    DILITHIUM_PUBLIC_KEY = "dilithium_public_key"
+    DILITHIUM_PRIVATE_KEY = "dilithium_private_key"
     ERROR = "error"
     MESSAGE = "msg"
     WORLD_ID = "world_id"
@@ -31,12 +37,12 @@ class Keys(Enum):
     AVATAR_NAME = "avatar_name"
     AVATAR_VIEW_ID = "avatar_view_id"
     RECIEVER_ID = "receiver_id"
-    PUBLIC_KEY = "public_key"
-    PRIVATE_KEY = "private_key"
     ENCAPSULATED_KEY = "encapsulated_key"
     TAG = "tag"
     CIPHER_TEXT = "cipher_text"
     NONCE = "nonce"
+    SIGNATURE = "signature"
+    VERIFICATION_STATUS = "verification_status" 
     REGISTRATION_INFO = "registration_info"
     LOGIN_INFO = "login_info"
     USER_ID = "user_id"
@@ -48,3 +54,7 @@ class Keys(Enum):
 class MessageType(Enum):
     PLAIN_TEXT = "plain_text"
     ENCRYPTED_TEXT = "encrypted_text"
+
+class VerificationStatus(Enum):
+    VERIFIED = "verified"
+    UNVERIFIED = "unverified"

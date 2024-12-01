@@ -8,7 +8,7 @@ using Newtonsoft.Json;
 
 public class LocalClient
 {
-    private const int m_DATA_BUFFER_SIZE = 10240;
+    private const int m_DATA_BUFFER_SIZE = 40560;
 
     private TcpClient m_localClient;
     private NetworkStream m_stream;

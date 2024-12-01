@@ -10,12 +10,13 @@ from world import World
 from avatar import Avatar
 from utilities import ServerInstructions, Keys, MessageType
 import kyber_encrypt_decrypt 
+import dilithium_sign_verify
 from user_info import UserInfo
 import json
 import uuid
 import hashlib
 
-DATA_BUFFER_SIZE = 10240
+DATA_BUFFER_SIZE = 20480
 host = "127.0.0.1"
 port = 12000
 
@@ -27,7 +28,8 @@ registered_users : set[UserInfo] = set()
 clients : set[Client] = set()
 worldsDict : dict[str, World] = {}
 
-public_key, private_key = kyber_encrypt_decrypt.getKey()
+kyber_public_key, kyber_private_key = kyber_encrypt_decrypt.getKeys()
+dilithium_public_key, dilithium_private_key = dilithium_sign_verify.getKeys()
 
 
 def getClientFromAddress(address, port) -> Client:
@@ -55,11 +57,9 @@ def DecodeInstruction(client : Client, parsedMsg : dict):
     print("Parsing Message Complete")
     msg_code = parsedMsg[Keys.INSTRUCTION.value]
     
-    if msg_code == ServerInstructions.SET_KEY.value:
-        pk = parsedMsg[Keys.PUBLIC_KEY.value]
-        client.publicKey = pk
-        print("client public key -> " + pk)
-    elif msg_code == ServerInstructions.GET_KEY.value:
+    if msg_code == ServerInstructions.SET_CLIENT_KEY.value:
+        setClientKey(client, parsedMsg)
+    elif msg_code == ServerInstructions.GET_SERVER_KEY.value:
         sendServerKey(client, parsedMsg)
     elif msg_code == ServerInstructions.REGISTER_USER.value:
         registerNewUser(client, parsedMsg)
@@ -90,7 +90,7 @@ def decryptMsg(client : Client, parsedMsg : dict):
     tag = parsedMsg[Keys.TAG.value]
     nonce = parsedMsg[Keys.NONCE.value]
 
-    if private_key == "" or enc_session_key == "" or tag == "" or cipher_text == "" or nonce == "":
+    if kyber_private_key == "" or enc_session_key == "" or tag == "" or cipher_text == "" or nonce == "":
         print("Invalid private key or enc_session_key or tag or ciphertext or nonce!")
         return
 
@@ -99,7 +99,8 @@ def decryptMsg(client : Client, parsedMsg : dict):
     cipher_text = bytes.fromhex(cipher_text)
     nonce = bytes.fromhex(nonce)
     
-    decrypted_msg = kyber_encrypt_decrypt.decrypt(private_key, enc_session_key, cipher_text, tag, nonce)
+    decrypted_msg = kyber_encrypt_decrypt.decrypt(kyber_private_key, enc_session_key, cipher_text, tag, nonce)
+    decrypted_msg = decrypted_msg.decode('utf-8')
     print("decrypted msg", end= " : ")
     print(decrypted_msg)
     parsedMsg : dict[str, str] = json.loads(decrypted_msg)
@@ -119,12 +120,24 @@ def encryptMsg(msg : str, key : str) -> dict[str, str]:
 
 def sendServerKey(client : Client, parsedMsg : dict):
     info : dict[str, str] = {}
-    info[Keys.INSTRUCTION.value] = ServerInstructions.GET_KEY.value
-    info[Keys.PUBLIC_KEY.value] = bytes.hex(public_key)
+    info[Keys.INSTRUCTION.value] = ServerInstructions.GET_SERVER_KEY.value
     info[Keys.MSG_TYPE.value] = MessageType.PLAIN_TEXT.value
+    info[Keys.KYBER_PUBLIC_KEY.value] = bytes.hex(kyber_public_key)
+    info[Keys.DILITHIUM_PUBLIC_KEY.value] = bytes.hex(dilithium_public_key)
     msg = json.dumps(info)
-    client.sendMessage(msg)
+    sendPlainMessageToClient(client, msg, False)
+    # client.sendMessage(msg)
     print("Server Public key is sent...")
+
+
+def setClientKey(client : Client, parsedMsg : dict):
+    kyber_pk = parsedMsg[Keys.KYBER_PUBLIC_KEY.value]
+    dilithium_pk = parsedMsg[Keys.DILITHIUM_PUBLIC_KEY.value]
+    client.kyberPublicKey = kyber_pk
+    client.dilithiumPublicKey = dilithium_pk
+    
+    print("client kyber public key -> " + kyber_pk)
+    print("client dilithium public key -> " + dilithium_pk)
 
 
 def logInUser(client : Client, parsedMsg : dict):
@@ -421,13 +434,55 @@ def sendMessageBetweenClient(client : Client, parsedMsg : dict):
 
 
 def sendEncryptedMessageToClient(receiver : Client, msg : str):
-    encrypted_msg = encryptMsg(msg, receiver.publicKey)
+    encrypted_msg = encryptMsg(msg, receiver.kyberPublicKey)
+
     msg = json.dumps(encrypted_msg)
+    print("Signinig encrypted msg...")
+    ### hash of msg -> h_msg
+    ### sign with Dilithium(h_msg, sk)
+    ### send (sign + msg)
+    sign = dilithium_sign_verify.signature(msg, dilithium_private_key)
+
+    new_msg : dict[str, str] = {}
+    new_msg[Keys.SIGNATURE.value] = bytes.hex(sign)
+    new_msg[Keys.MESSAGE.value] = msg
+
+    new_msg = json.dumps(new_msg)
+
+    receiver.sendMessage(new_msg)
+
+
+def sendPlainMessageToClient(receiver : Client, msg : str, should_sign : bool = True):
+    if should_sign:
+        print("Signinig plain msg...")
+        ### hash of msg -> h_msg
+        ### sign with Dilithium(h_msg, sk)
+        ### send sign + msg
+        sign = dilithium_sign_verify.signature(msg, dilithium_private_key)
+
+        new_msg : dict[str, str] = {}
+        new_msg[Keys.SIGNATURE.value] = bytes.hex(sign)
+        new_msg[Keys.MESSAGE.value] = msg
+
+        msg = json.dumps(new_msg)
+
     receiver.sendMessage(msg)
 
 
 def parseMessage(client : Client, msg : str):
     parsedMsg : dict[str, str] = json.loads(msg)
+
+    ### For Digital Signature verify
+    if Keys.SIGNATURE.value in parsedMsg:
+        sign = parsedMsg[Keys.SIGNATURE.value]
+        new_msg = parsedMsg[Keys.MESSAGE.value]
+        if dilithium_sign_verify.verify(bytes.fromhex(client.dilithiumPublicKey), bytes.fromhex(sign), new_msg):
+            print("Msg verfication is success...")
+            parsedMsg = json.loads(new_msg)
+        else:
+            print("Msg verfication is failed...")
+            return
+
     if not Keys.MSG_TYPE.value in parsedMsg:
         # print("Message is not encrypted. Encrypt the msg.")
         print("No msg type is given with the msg...")
@@ -469,13 +524,13 @@ def handleClient(client_socket : socket):
                 print(msg)
                 parseMessage(client, msg)
             except KeyboardInterrupt:
+                print("Keyboard Interruption...")
                 client.close()
                 break
-            # except Exception as e:
-            #     print(e)
-            #     print("Some error in receiving data -> " + str(e))
-            #     client.close()
-            #     break
+            except Exception as e:
+                print(f"Some error occurs... {e}")
+                client.close()
+                break
     except KeyboardInterrupt:
         client.close()
     # except Exception as e:
